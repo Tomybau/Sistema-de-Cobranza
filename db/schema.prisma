@@ -1,0 +1,427 @@
+// Sistema de Cobranza y Gestión de Contratos
+// Schema de Prisma — Fase 1
+//
+// Convenciones:
+// - IDs: cuid()
+// - Fechas: timestamps (createdAt, updatedAt) en todas las entidades de negocio
+// - Soft delete: deletedAt en entidades críticas (Company, Client, Contract, Payment)
+// - Decimal con precisión explícita para montos
+// - Currency a nivel de Contract (todos los items de un contrato comparten currency)
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+}
+
+// migrations: db/migrations/ (configurado via --schema flag en comandos)
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// USUARIOS DEL SISTEMA (admin)
+// =============================================================================
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         UserRole  @default(ADMIN)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  auditLogs        AuditLog[]
+  emailLogsSent    EmailLog[]      @relation("EmailSentBy")
+  paymentsRegistered Payment[]     @relation("PaymentRegisteredBy")
+  documentsValidated ExtractionResult[] @relation("ExtractionValidatedBy")
+
+  @@index([email])
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+}
+
+// =============================================================================
+// CLIENTES (empresas y personas de contacto)
+// =============================================================================
+
+model Company {
+  id            String    @id @default(cuid())
+  legalName     String
+  tradeName     String?
+  taxId         String?   @unique
+  email         String?
+  phone         String?
+  address       String?
+  city          String?
+  country       String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  clients   Client[]
+  contracts Contract[]
+
+  @@index([legalName])
+  @@index([deletedAt])
+}
+
+model Client {
+  id        String    @id @default(cuid())
+  companyId String
+  fullName  String
+  role      String?   // ej: "Owner", "Accountant", "Billing contact"
+  email     String
+  phone     String?
+  isPrimary Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([email])
+  @@index([deletedAt])
+}
+
+// =============================================================================
+// CONTRATOS Y PRICING
+// =============================================================================
+
+model Contract {
+  id              String         @id @default(cuid())
+  companyId       String
+  contractNumber  String         @unique
+  title           String
+  description     String?
+  currency        String         @default("USD") // ISO 4217
+  startDate       DateTime
+  endDate         DateTime?      // null = sin fecha de fin
+  status          ContractStatus @default(ACTIVE)
+  paymentTermsDays Int           @default(15) // días para vencimiento desde emisión
+  lateFeePercent  Decimal        @default(0) @db.Decimal(5, 2)
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+
+  company        Company         @relation(fields: [companyId], references: [id])
+  items          ContractItem[]
+  billingTickets BillingTicket[]
+  documents      Document[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  ENDED
+  CANCELLED
+}
+
+model ContractItem {
+  id          String           @id @default(cuid())
+  contractId  String
+  type        ContractItemType
+  name        String
+  description String?
+
+  // Para items fijos
+  fixedAmount Decimal? @db.Decimal(12, 2)
+
+  // Para items variables (referencia a una pricing table)
+  pricingTableId String?
+
+  // Para items one-time o installment
+  totalAmount     Decimal? @db.Decimal(12, 2)
+  installments    Int?     // cantidad de cuotas (null para one-time)
+  installmentNum  Int?     // null en el item, se usa al generar tickets
+
+  // Recurrencia (solo aplica a RECURRING_*)
+  billingDayOfMonth Int? // 1-28 típicamente
+
+  isActive  Boolean   @default(true)
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  contract       Contract        @relation(fields: [contractId], references: [id])
+  pricingTable   PricingTable?   @relation(fields: [pricingTableId], references: [id])
+  billingTickets BillingTicket[]
+
+  @@index([contractId])
+  @@index([type])
+}
+
+enum ContractItemType {
+  RECURRING_FIXED      // mensualidad fija
+  RECURRING_VARIABLE   // mensualidad variable según pricing table
+  ONE_TIME             // cuota única (ej: setup fee)
+  INSTALLMENT          // cuota dentro de un plan (ej: implementación en 3 cuotas)
+}
+
+model PricingTable {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tiers PricingTier[]
+  items ContractItem[]
+}
+
+model PricingTier {
+  id             String       @id @default(cuid())
+  pricingTableId String
+  fromQuantity   Decimal      @db.Decimal(12, 4)
+  toQuantity     Decimal?     @db.Decimal(12, 4) // null = sin tope
+  unitPrice      Decimal      @db.Decimal(12, 4)
+  flatFee        Decimal?     @db.Decimal(12, 2) // opcional, fee fijo + variable
+  createdAt      DateTime     @default(now())
+
+  pricingTable PricingTable @relation(fields: [pricingTableId], references: [id])
+
+  @@index([pricingTableId])
+}
+
+// =============================================================================
+// TICKETS DE COBRO Y PAGOS
+// =============================================================================
+
+model BillingTicket {
+  id             String              @id @default(cuid())
+  ticketNumber   String              @unique
+  contractId     String
+  contractItemId String
+  periodStart    DateTime?           // para tickets recurrentes
+  periodEnd      DateTime?           // para tickets recurrentes
+  issueDate      DateTime
+  dueDate        DateTime
+  amount         Decimal             @db.Decimal(12, 2)
+  currency       String              @default("USD")
+  variableQuantity Decimal?          @db.Decimal(12, 4) // para items variables
+  status         BillingTicketStatus @default(PENDING)
+  notes          String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  paidAt         DateTime?
+  cancelledAt    DateTime?
+
+  contract     Contract        @relation(fields: [contractId], references: [id])
+  contractItem ContractItem    @relation(fields: [contractItemId], references: [id])
+  payments     PaymentTicket[]
+  emailLogs    EmailLog[]
+
+  @@index([contractId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([issueDate])
+}
+
+enum BillingTicketStatus {
+  PENDING    // generado, no enviado
+  SENT       // notificado al cliente
+  PAID       // pagado
+  OVERDUE    // vencido sin pago
+  CANCELLED  // cancelado manualmente
+  PARTIAL    // pago parcial registrado
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  paymentNumber    String        @unique
+  amount           Decimal       @db.Decimal(12, 2)
+  currency         String        @default("USD")
+  paymentDate      DateTime
+  method           PaymentMethod
+  reference        String?       // número de transferencia, cheque, etc.
+  notes            String?
+  registeredById   String
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
+
+  registeredBy User            @relation("PaymentRegisteredBy", fields: [registeredById], references: [id])
+  tickets      PaymentTicket[]
+
+  @@index([paymentDate])
+  @@index([deletedAt])
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CHECK
+  CASH
+  CREDIT_CARD
+  OTHER
+}
+
+// Tabla de unión: un pago puede aplicarse a varios tickets, y un ticket puede recibir
+// pagos parciales de varios payments
+model PaymentTicket {
+  id              String   @id @default(cuid())
+  paymentId       String
+  billingTicketId String
+  amountApplied   Decimal  @db.Decimal(12, 2)
+  createdAt       DateTime @default(now())
+
+  payment       Payment       @relation(fields: [paymentId], references: [id])
+  billingTicket BillingTicket @relation(fields: [billingTicketId], references: [id])
+
+  @@unique([paymentId, billingTicketId])
+  @@index([paymentId])
+  @@index([billingTicketId])
+}
+
+// =============================================================================
+// MAILS
+// =============================================================================
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  key         String   @unique // ej: "ticket_reminder", "welcome", "overdue_notice"
+  name        String
+  description String?
+  subject     String
+  bodyHtml    String   @db.Text
+  bodyText    String?  @db.Text
+  variables   Json     // lista de variables disponibles, ej: ["client.name", "ticket.amount"]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  emailLogs EmailLog[]
+}
+
+model EmailLog {
+  id              String      @id @default(cuid())
+  templateId      String?
+  billingTicketId String?
+  toEmail         String
+  subject         String
+  bodyHtml        String      @db.Text
+  status          EmailStatus
+  errorMessage    String?
+  sentById        String?
+  sentAt          DateTime    @default(now())
+  providerMessageId String?
+
+  template      EmailTemplate? @relation(fields: [templateId], references: [id])
+  billingTicket BillingTicket? @relation(fields: [billingTicketId], references: [id])
+  sentBy        User?          @relation("EmailSentBy", fields: [sentById], references: [id])
+
+  @@index([billingTicketId])
+  @@index([sentAt])
+  @@index([status])
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+  BOUNCED
+}
+
+// =============================================================================
+// DOCUMENTOS Y EXTRACCIONES (Fase 2 — definidos pero sin lógica en Fase 1)
+// =============================================================================
+
+model Document {
+  id          String       @id @default(cuid())
+  contractId  String?      // puede no tener contrato asociado todavía
+  type        DocumentType
+  source      DocumentSource
+  fileName    String
+  fileSize    Int
+  mimeType    String
+  storageKey  String       // key en S3/MinIO
+  uploadedAt  DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+
+  contract    Contract?          @relation(fields: [contractId], references: [id])
+  extractions ExtractionResult[]
+
+  @@index([contractId])
+  @@index([source])
+}
+
+enum DocumentType {
+  CONTRACT
+  INVOICE
+  RECEIPT
+  OTHER
+}
+
+enum DocumentSource {
+  MANUAL_UPLOAD
+  EMAIL_INGEST
+  DRIVE_INGEST
+  API
+}
+
+model ExtractionResult {
+  id              String              @id @default(cuid())
+  documentId      String
+  provider        String              // "openai", "anthropic", "google-vision", etc.
+  modelVersion    String?
+  rawOutput       Json
+  correctedOutput Json?
+  confidence      Decimal?            @db.Decimal(5, 4)
+  status          ExtractionStatus    @default(PENDING_VALIDATION)
+  validatedById   String?
+  validatedAt     DateTime?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  document    Document @relation(fields: [documentId], references: [id])
+  validatedBy User?    @relation("ExtractionValidatedBy", fields: [validatedById], references: [id])
+
+  @@index([documentId])
+  @@index([status])
+}
+
+enum ExtractionStatus {
+  PENDING_VALIDATION
+  VALIDATED
+  REJECTED
+  CORRECTED
+}
+
+// =============================================================================
+// AUDITORÍA
+// =============================================================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String   // "contract.create", "ticket.mark_paid", "payment.register", etc.
+  entityType  String   // "Contract", "BillingTicket", "Payment", etc.
+  entityId    String
+  beforeData  Json?
+  afterData   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+}

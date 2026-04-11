@@ -1,0 +1,87 @@
+# claudeignore-defaults.txt
+# Standard patterns for .claudeignore files in full-stack projects.
+# Binary/media patterns are commented out — uncomment the ones that apply to your project.
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+vendor/
+__pycache__/
+.venv/
+venv/
+.env/
+
+# ── Lock files ────────────────────────────────────────────────────────────────
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+Pipfile.lock
+poetry.lock
+Cargo.lock
+composer.lock
+Gemfile.lock
+go.sum
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+dist/
+build/
+target/
+out/
+.next/
+.nuxt/
+.output/
+.svelte-kit/
+.turbo/
+.vercel/
+.netlify/
+
+# ── Minified / bundled ────────────────────────────────────────────────────────
+*.min.js
+*.min.css
+*.bundle.js
+*.map
+
+# ── Generated / cached ────────────────────────────────────────────────────────
+coverage/
+.cache/
+.parcel-cache/
+.eslintcache
+*.tsbuildinfo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+*.egg-info/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── Binary / media (opt-in — uncomment what applies) ─────────────────────────
+# *.jpg
+# *.jpeg
+# *.png
+# *.gif
+# *.webp
+# *.avif
+# *.svg
+# *.ico
+# *.mp4
+# *.mov
+# *.mp3
+# *.wav
+# *.pdf
+# *.zip
+# *.tar.gz
+# *.woff
+# *.woff2
+# *.ttf
+# *.otf

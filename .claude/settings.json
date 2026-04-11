@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(~/.claude/skills/automation-builder/**)",
+      "Edit(~/.claude/skills/landing-builder/**)",
+      "Edit(~/.claude/skills/token-diet/**)",
+      "Read(//c/Users/tomyb/.claude/skills/token-diet/templates/**)",
+      "Read(//c/Program Files/Docker//**)",
+      "Read(//c/Program Files/Docker/Docker//**)",
+      "Read(//c/Users/tomyb/AppData/Local/Docker//**)",
+      "Bash(powershell.exe -Command \"Get-Command docker | Select-Object -ExpandProperty Source\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\tomyb\\.claude\\commands"
+    ]
+  }
+}
