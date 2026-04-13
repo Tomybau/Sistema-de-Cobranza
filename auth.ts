@@ -1,9 +1,13 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
+import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/db/client"
+import { authConfig } from "./auth.config"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
+  adapter: PrismaAdapter(prisma),
   providers: [
     Credentials({
       credentials: {
@@ -60,8 +64,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return session
     },
-  },
-  pages: {
-    signIn: "/login",
   },
 })

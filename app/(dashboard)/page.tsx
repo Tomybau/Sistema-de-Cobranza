@@ -2,6 +2,8 @@ import { getDashboardKpis } from "@/domain/dashboard/queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, Clock, AlertTriangle, FileText } from "lucide-react"
 
+export const dynamic = "force-dynamic"
+
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",

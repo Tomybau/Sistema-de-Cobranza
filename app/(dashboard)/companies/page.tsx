@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { Plus } from "lucide-react"
 
+export const dynamic = "force-dynamic"
+
 import { Button } from "@/components/ui/button"
 import { CompaniesTable } from "@/components/companies/companies-table"
 import { listCompanies } from "@/domain/companies/queries"
@@ -17,9 +19,11 @@ export default async function CompaniesPage() {
             Gestioná las empresas clientes del sistema
           </p>
         </div>
-        <Button render={<Link href="/companies/new" />}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva empresa
+        <Button asChild>
+          <Link href="/companies/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva empresa
+          </Link>
         </Button>
       </div>
 

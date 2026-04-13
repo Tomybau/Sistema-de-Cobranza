@@ -1,14 +1,18 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
+
+export const dynamic = "force-dynamic"
 import { ChevronLeft, Pencil } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getCompanyById } from "@/domain/companies/queries"
 import { listClientsByCompany } from "@/domain/clients/queries"
+import { listContracts } from "@/domain/contracts/queries"
 import { CompanyOverview } from "./_components/company-overview"
 import { DeleteCompanyButton } from "./_components/delete-company-button"
 import { ClientsTable } from "@/components/clients/clients-table"
+import { ContractsTable } from "@/components/contracts/contracts-table"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -22,7 +26,10 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
   const company = await getCompanyById(id)
   if (!company) notFound()
 
-  const clients = await listClientsByCompany(id)
+  const [clients, contracts] = await Promise.all([
+    listClientsByCompany(id),
+    listContracts({ companyId: id }),
+  ])
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
@@ -42,9 +49,11 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" render={<Link href={`/companies/${id}/edit`} />}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Editar
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/companies/${id}/edit`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </Link>
           </Button>
           <DeleteCompanyButton companyId={id} companyName={company.legalName} />
         </div>
@@ -62,7 +71,14 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="contracts">Contratos</TabsTrigger>
+          <TabsTrigger value="contracts">
+          Contratos
+          {contracts.length > 0 && (
+            <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium">
+              {contracts.length}
+            </span>
+          )}
+        </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -74,19 +90,19 @@ export default async function CompanyDetailPage({ params, searchParams }: Props)
             <p className="text-sm text-muted-foreground">
               Personas de contacto para envío de mails y comunicaciones
             </p>
-            <Button size="sm" render={<Link href={`/companies/${id}/clients/new`} />}>
-              Nuevo contacto
+            <Button size="sm" asChild>
+              <Link href={`/companies/${id}/clients/new`}>Nuevo contacto</Link>
             </Button>
           </div>
           <ClientsTable data={clients} companyId={id} />
         </TabsContent>
 
         <TabsContent value="contracts" className="mt-4">
-          <div className="flex items-center justify-center py-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              No hay contratos todavía — disponible en Sesión 3
-            </p>
-          </div>
+          <ContractsTable
+            data={contracts}
+            showCompany={false}
+            newHref={`/contracts/new?companyId=${id}`}
+          />
         </TabsContent>
       </Tabs>
     </div>

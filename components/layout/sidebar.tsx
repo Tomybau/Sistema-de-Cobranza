@@ -10,6 +10,7 @@ import {
   CreditCard,
   Mail,
   ClipboardList,
+  Table,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/companies", label: "Empresas", icon: Building2 },
   { href: "/contracts", label: "Contratos", icon: FileText },
+  { href: "/pricing-tables", label: "Pricing Tables", icon: Table },
   { href: "/tickets", label: "Tickets", icon: Receipt },
   { href: "/payments", label: "Pagos", icon: CreditCard },
   { href: "/templates", label: "Templates", icon: Mail },

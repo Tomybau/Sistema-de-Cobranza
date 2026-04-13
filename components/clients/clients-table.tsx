@@ -82,18 +82,18 @@ function RowActions({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Acciones</span>
-            </Button>
-          }
-        />
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
+            <MoreHorizontal className="h-4 w-4" />
+            <span className="sr-only">Acciones</span>
+          </Button>
+        </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem render={<Link href={`/companies/${companyId}/clients/${client.id}/edit`} />}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Editar
+          <DropdownMenuItem asChild>
+            <Link href={`/companies/${companyId}/clients/${client.id}/edit`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </Link>
           </DropdownMenuItem>
           {!client.isPrimary && (
             <DropdownMenuItem onClick={handleSetPrimary} disabled={isPending}>

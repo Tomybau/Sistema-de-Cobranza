@@ -1,5 +1,7 @@
 import Link from "next/link"
 import { ChevronLeft } from "lucide-react"
+
+export const dynamic = "force-dynamic"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
