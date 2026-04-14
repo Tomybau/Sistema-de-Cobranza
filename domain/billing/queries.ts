@@ -142,10 +142,11 @@ export async function getBillingTicketById(id: string) {
             select: {
               id: true,
               paymentNumber: true,
-              amount: true,
+              grossAmount: true,
               currency: true,
               paymentDate: true,
               method: true,
+              status: true,
             },
           },
         },
@@ -186,7 +187,8 @@ export async function getBillingTicketById(id: string) {
       paymentNumber: pt.payment.paymentNumber,
       paymentDate: pt.payment.paymentDate,
       method: pt.payment.method,
-      amountApplied: pt.amountApplied.toString(),
+      status: pt.payment.status,
+      amountApplied: pt.allocatedAmount.toString(),
       currency: pt.payment.currency,
     })),
   }

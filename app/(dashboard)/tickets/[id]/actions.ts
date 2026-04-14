@@ -25,8 +25,8 @@ export async function cancelTicketAction(
   })
 
   if (!ticket) return { success: false, error: "Ticket no encontrado." }
-  if (ticket.status === "PAID")
-    return { success: false, error: "No se puede cancelar un ticket pagado." }
+  if (ticket.status === "PAID" || ticket.status === "PARTIAL")
+    return { success: false, error: "No se puede cancelar un ticket con pagos registrados." }
   if (ticket.status === "CANCELLED")
     return { success: false, error: "El ticket ya está cancelado." }
 
