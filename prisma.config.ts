@@ -1,4 +1,7 @@
 import path from "node:path"
+import { config } from "dotenv"
+config()
+
 import { defineConfig, env } from "prisma/config"
 
 // Prisma v7 mueve la URL de conexión al config file en lugar del schema.

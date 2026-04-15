@@ -12,6 +12,8 @@ import { getBillingTicketById } from "@/domain/billing/queries"
 import { formatMoney } from "@/lib/money"
 import { CancelTicketButton } from "@/components/billing/cancel-ticket-button"
 import { MarkSentButton } from "@/components/billing/mark-sent-button"
+import { SendEmailDialog } from "@/components/email/send-email-dialog"
+import { prisma } from "@/db/client"
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "Pendiente",
@@ -46,6 +48,12 @@ export default async function TicketDetailPage({ params }: Props) {
   const canCancel =
     ticket.status !== "PAID" && ticket.status !== "CANCELLED"
   const canMarkSent = ticket.status === "PENDING"
+  const isInvalidForEmail = ticket.status === "CANCELLED" || ticket.status === ("DRAFT" as any)
+
+  const templates = await prisma.emailTemplate.findMany({
+    where: { companyId: ticket.companyId },
+    select: { id: true, name: true, subject: true, isDefault: true }
+  })
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">
@@ -70,6 +78,11 @@ export default async function TicketDetailPage({ params }: Props) {
         </div>
         {/* Acciones */}
         <div className="flex gap-2">
+          <SendEmailDialog 
+            ticketId={ticket.id} 
+            templates={templates} 
+            disabled={isInvalidForEmail}
+          />
           {canMarkSent && <MarkSentButton ticketId={id} />}
           {canCancel && <CancelTicketButton ticketId={id} disabled={false} />}
         </div>
@@ -170,6 +183,56 @@ export default async function TicketDetailPage({ params }: Props) {
             </div>
           )}
         </div>
+      </section>
+
+      <Separator />
+
+      {/* Emails enviados */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          Emails enviados
+          {ticket.emailLogs.length > 0 && (
+            <span className="ml-2 normal-case font-normal text-foreground">
+              ({ticket.emailLogs.length})
+            </span>
+          )}
+        </h2>
+        {ticket.emailLogs.length === 0 ? (
+          <div className="rounded-md border border-dashed p-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              No se han enviado correos para este ticket.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-md border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">Fecha</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">Template</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">Estado</th>
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">Asunto (Aprox)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {ticket.emailLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td className="px-3 py-2">
+                      {log.sentAt ? format(new Date(log.sentAt), "dd MMM yyyy HH:mm", { locale: es }) : format(new Date(log.createdAt), "dd MMM yyyy HH:mm", { locale: es })}
+                    </td>
+                    <td className="px-3 py-2 font-medium">{log.templateName}</td>
+                    <td className="px-3 py-2">
+                      <Badge variant={log.status === "SENT" ? "default" : log.status === "FAILED" ? "destructive" : "secondary"}>
+                        {log.status === "SENT" ? "Enviado" : log.status === "FAILED" ? "Falló" : log.status}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground truncate max-w-[200px]">{log.subject}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <Separator />

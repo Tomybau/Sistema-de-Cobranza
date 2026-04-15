@@ -36,7 +36,6 @@ model User {
   updatedAt    DateTime  @updatedAt
 
   auditLogs        AuditLog[]
-  emailLogsSent    EmailLog[]      @relation("EmailSentBy")
   paymentsRegistered Payment[]     @relation("PaymentRegisteredBy")
   documentsValidated ExtractionResult[] @relation("ExtractionValidatedBy")
   accounts         Account[]
@@ -107,6 +106,7 @@ model Company {
   clients   Client[]
   contracts Contract[]
   payments  Payment[]
+  emailTemplates EmailTemplate[]
 
   @@index([legalName])
   @@index([deletedAt])
@@ -350,44 +350,36 @@ model PaymentTicket {
 
 model EmailTemplate {
   id          String   @id @default(cuid())
-  key         String   @unique // ej: "ticket_reminder", "welcome", "overdue_notice"
+  companyId   String
   name        String
-  description String?
   subject     String
   bodyHtml    String   @db.Text
-  bodyText    String?  @db.Text
-  variables   Json     // lista de variables disponibles, ej: ["client.name", "ticket.amount"]
-  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  emailLogs EmailLog[]
+  company     Company       @relation(fields: [companyId], references: [id])
+  emailLogs   EmailLog[]
 }
 
 model EmailLog {
-  id              String      @id @default(cuid())
-  templateId      String?
-  billingTicketId String?
+  id              String          @id @default(cuid())
+  ticketId        String
+  templateId      String
   toEmail         String
   subject         String
-  bodyHtml        String      @db.Text
-  status          EmailStatus
+  status          EmailLogStatus  @default(PENDING)
+  resendMessageId String?
   errorMessage    String?
-  sentById        String?
-  sentAt          DateTime    @default(now())
-  providerMessageId String?
+  sentAt          DateTime?
+  createdAt       DateTime        @default(now())
 
-  template      EmailTemplate? @relation(fields: [templateId], references: [id])
-  billingTicket BillingTicket? @relation(fields: [billingTicketId], references: [id])
-  sentBy        User?          @relation("EmailSentBy", fields: [sentById], references: [id])
-
-  @@index([billingTicketId])
-  @@index([sentAt])
-  @@index([status])
+  ticket          BillingTicket   @relation(fields: [ticketId], references: [id])
+  template        EmailTemplate   @relation(fields: [templateId], references: [id])
 }
 
-enum EmailStatus {
-  QUEUED
+enum EmailLogStatus {
+  PENDING
   SENT
   FAILED
   BOUNCED

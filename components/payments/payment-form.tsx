@@ -175,22 +175,34 @@ export function PaymentForm({ clients }: PaymentFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Cliente / Empresa</Label>
-            <Input 
-              placeholder="Filtrar por nombre..." 
-              value={clientSearch}
-              onChange={(e) => setClientSearch(e.target.value)}
-              className="mb-1"
-            />
             <Select value={clientId} onValueChange={handleClientChange}>
               <SelectTrigger className="h-auto whitespace-normal text-left">
                 <SelectValue placeholder="Seleccione un cliente..." />
               </SelectTrigger>
-              <SelectContent>
-                {filteredClients.map(c => (
-                  <SelectItem key={c.id} value={c.id} className="whitespace-normal">
-                    {c.name}
-                  </SelectItem>
-                ))}
+              <SelectContent className="max-h-[300px]">
+                <div 
+                  className="p-2 sticky top-0 bg-popover z-10 border-b"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <Input 
+                    placeholder="Escriba para filtrar por nombre..." 
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                {filteredClients.length > 0 ? (
+                  filteredClients.map(c => (
+                    <SelectItem key={c.id} value={c.id} className="items-start py-2">
+                      <span className="leading-snug">{c.name}</span>
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="px-2 py-4 text-center text-sm text-muted-foreground border-t mt-1">
+                    No se encontraron clientes.
+                  </div>
+                )}
               </SelectContent>
             </Select>
           </div>

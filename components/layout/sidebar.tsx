@@ -22,7 +22,7 @@ const navItems = [
   { href: "/pricing-tables", label: "Pricing Tables", icon: Table },
   { href: "/tickets", label: "Tickets", icon: Receipt },
   { href: "/payments", label: "Pagos", icon: CreditCard },
-  { href: "/templates", label: "Templates", icon: Mail },
+  { href: "/email-templates", label: "Templates", icon: Mail },
 ]
 
 const secondaryNavItems = [

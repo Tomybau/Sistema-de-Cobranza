@@ -152,6 +152,12 @@ export async function getBillingTicketById(id: string) {
         },
         orderBy: { createdAt: "desc" },
       },
+      emailLogs: {
+        include: {
+          template: { select: { name: true } }
+        },
+        orderBy: { createdAt: "desc" }
+      }
     },
   })
 
@@ -191,6 +197,14 @@ export async function getBillingTicketById(id: string) {
       amountApplied: pt.allocatedAmount.toString(),
       currency: pt.payment.currency,
     })),
+    emailLogs: row.emailLogs.map(log => ({
+      id: log.id,
+      templateName: log.template.name,
+      status: log.status,
+      subject: log.subject,
+      sentAt: log.sentAt,
+      createdAt: log.createdAt,
+    }))
   }
 }
 
