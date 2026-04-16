@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/companies", label: "Empresas", icon: Building2 },
   { href: "/contracts", label: "Contratos", icon: FileText },
   { href: "/pricing-tables", label: "Pricing Tables", icon: Table },
@@ -38,7 +38,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   const pathname = usePathname()
 
   function isActive(href: string) {
-    if (href === "/") return pathname === "/"
+    if (href === "/dashboard") return pathname === "/dashboard"
     return pathname.startsWith(href)
   }
 
