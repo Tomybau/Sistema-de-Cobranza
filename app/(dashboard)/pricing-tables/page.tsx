@@ -1,11 +1,17 @@
 export const dynamic = "force-dynamic"
 
+import type { Metadata } from "next"
 import Link from "next/link"
 import { Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { PricingTablesTable } from "@/components/pricing-tables/pricing-tables-table"
 import { listPricingTables } from "@/domain/pricing_tables/queries"
+
+export const metadata: Metadata = {
+  title: "Pricing Tables | Sistema de Cobranza",
+  description: "Tablas de precios para items variables",
+}
 
 export default async function PricingTablesPage() {
   const tables = await listPricingTables()

@@ -1,142 +1,205 @@
 # Sistema de Cobranza y Gestión de Contratos
 
-Sistema interno para gestión de clientes, contratos, cobranza recurrente y comunicación con clientes. Reemplaza un workflow manual basado en Excel + correos.
+Sistema interno single-tenant para gestionar empresas clientes, contratos, tickets de cobro, pagos y comunicación por email. Reemplaza un workflow basado en Excel + correos.
 
-## Estado actual
+---
 
-**Fase 1 — Core de cobranza** (en desarrollo)
+## Stack y versiones
 
-## Stack
+| Tecnología | Versión | Uso |
+|---|---|---|
+| Next.js | ^15.0.0 | Framework (App Router, Server Components) |
+| React | 19.x | UI |
+| TypeScript | strict | Lenguaje |
+| Prisma | ^6.0.0 | ORM |
+| PostgreSQL | 16 | Base de datos |
+| Auth.js (NextAuth) | v5 beta | Auth (sessions en DB) |
+| @auth/prisma-adapter | ^2.11.x | Adapter Prisma para Auth.js |
+| shadcn/ui (Radix) | 2.x | Componentes UI (slate base) |
+| TanStack Table | ^8.21.x | Tablas headless |
+| Recharts | ^3.x | Gráficos |
+| React Hook Form | ^7.x | Formularios |
+| Zod | ^4.x | Validación |
+| Resend | ^6.x | Envío de emails |
+| date-fns | ^4.x | Fechas |
+| Sonner | via shadcn | Toasts |
 
-- Next.js 15 (App Router) + TypeScript strict
-- Prisma + PostgreSQL
-- Auth.js v5
-- shadcn/ui + Tailwind
-- TanStack Table, Recharts, Zod, React Hook Form
-- Resend (mails), MinIO/S3 (storage)
+> **Versiones fijas.** No actualizar sin una sesión dedicada. Ver `CLAUDE.md` para el razonamiento de cada elección.
 
-## Roadmap
+---
 
-### Fase 1 — Core de cobranza (4 semanas estimadas)
+## Variables de entorno
 
-Objetivo: dejar al cliente operando el día a día sin Excel ni Monday.
+Copiar `.env.example` a `.env` y completar:
 
-**Incluye:**
-- Auth de usuarios admin (1-3 personas)
-- CRUD de Companies (empresas cliente)
-- CRUD de Clients (contactos dentro de cada Company)
-- CRUD de Contracts con sus ContractItems y PricingTables
-- Generación manual y automática (cron mensual) de BillingTickets
-- Lista de tickets con filtros: pendientes, pagados, vencidos, por cliente
-- Marcar tickets como pagados, registrar Payments
-- CRUD de EmailTemplates
-- Envío manual de mails desde un ticket usando un template
-- Dashboard con KPIs:
-  - Total facturado en el período
-  - Total pendiente de cobro
-  - Total en mora
-  - Tiempo promedio de pago
-  - Próximos vencimientos (próximos 7 días)
-  - Cantidad de contratos activos
-- AuditLog para todas las operaciones críticas
-- Soft delete en entidades críticas
-- Seed básico para desarrollo
+```env
+# Base de datos
+DATABASE_URL="postgresql://cobranza:cobranza@localhost:5432/cobranza?schema=public"
 
-**No incluye (queda para Fase 2/3):**
-- Ingesta automática desde Gmail/Drive
-- OCR de contratos/facturas
-- Validación humana de extracciones
-- Integración con QuickBooks
-- Recordatorios automáticos a 15 días
-- Reporte mensual automático por mail (se puede agregar al final de Fase 1 si sobra tiempo)
+# Auth.js — generar con: openssl rand -base64 32
+AUTH_SECRET="<secret>"
+AUTH_URL="http://localhost:3000"
 
-### Fase 2 — Ingesta + OCR + validación (3 semanas estimadas)
+# Resend
+RESEND_API_KEY="re_..."
+RESEND_FROM_EMAIL="cobranza@tudominio.com"
+RESEND_FROM_NAME="Cobranza"
+RESEND_WEBHOOK_SECRET=""   # Resend Dashboard → Webhooks → Signing Secret
 
-- Conector a Gmail (lectura de adjuntos)
-- Conector a Google Drive (watch sobre carpetas)
-- Pipeline de OCR/IA pluggable (proveedor configurable)
-- Vista de validación humana con diff entre raw y corrected
-- Loop iterativo de mejora de prompts
-- Auto-creación de Documents → ExtractionResults → propuesta de Contract para validar
+# Storage (MinIO en dev, S3/R2 en prod)
+STORAGE_ENDPOINT="http://localhost:9000"
+STORAGE_REGION="us-east-1"
+STORAGE_BUCKET="cobranza-documents"
+STORAGE_ACCESS_KEY="minioadmin"
+STORAGE_SECRET_KEY="minioadmin"
+STORAGE_FORCE_PATH_STYLE="true"
 
-### Fase 3 — QuickBooks (2 semanas estimadas)
+# App
+APP_URL="http://localhost:3000"
+APP_TIMEZONE="America/Argentina/Buenos_Aires"
+APP_DEFAULT_CURRENCY="USD"
+```
 
-- Detección de facturas creadas (webhook o polling)
-- Descarga de PDF de factura
-- Generación de mail con template + adjunto
-- Job de recordatorio a 15 días
+---
 
 ## Setup local
 
 ```bash
-# 1. Clonar y entrar
+# 1. Clonar e instalar
+git clone <repo>
 cd cobranza-system
-
-# 2. Instalar dependencias
 npm install
 
-# 3. Configurar variables de entorno
+# 2. Configurar entorno
 cp .env.example .env
-# Editar .env con valores reales
+# Editar .env con los valores reales
 
-# 4. Levantar servicios (Postgres, MinIO, Redis)
-docker compose up -d
+# 3. Levantar PostgreSQL (con Docker)
+docker run -d \
+  --name cobranza-pg \
+  -e POSTGRES_USER=cobranza \
+  -e POSTGRES_PASSWORD=cobranza \
+  -e POSTGRES_DB=cobranza \
+  -p 5432:5432 \
+  postgres:16-alpine
 
-# 5. Migrar la BD
-npx prisma migrate dev
+# 4. Aplicar migraciones
+npx prisma migrate deploy --schema=db/schema.prisma
 
-# 6. Cargar datos de prueba
-npx prisma db seed
+# 5. (Opcional) Seed inicial para desarrollo
+npx prisma db seed --schema=db/schema.prisma
 
-# 7. Arrancar dev server
+# 6. Levantar dev server
 npm run dev
 ```
 
-Después abrís `http://localhost:3000` y te logueás con el user admin del seed.
+La app corre en `http://localhost:3000`. Crear el primer usuario admin via seed o `prisma studio`.
 
-## Estructura del repo
+---
+
+## Módulos implementados (Fase 1)
+
+### Autenticación
+- Login con email + password (credentials provider, Auth.js v5)
+- Sesiones en PostgreSQL (`strategy: "database"`)
+- Middleware de protección para todas las rutas privadas
+
+### Empresas (`/companies`)
+- CRUD completo con soft delete y restauración
+- Tabla con búsqueda y filtros
+
+### Clientes (`/companies/[id]/clients`)
+- Contactos por empresa (uno es "primario" y recibe los emails)
+
+### Contratos (`/contracts`)
+- Contratos por empresa: vigencia, currency, condiciones de pago
+- Items: `RECURRING_FIXED`, `RECURRING_VARIABLE`, `ONE_TIME`, `INSTALLMENT`
+- Estados: DRAFT → ACTIVE → SUSPENDED / ENDED / CANCELLED
+
+### Pricing Tables (`/pricing-tables`)
+- Tablas de rangos precio para items variables
+
+### Tickets de cobro (`/tickets`)
+- Generación de tickets desde items (preview antes de confirmar)
+- Estados: PENDING → SENT → PAID / OVERDUE / PARTIAL / CANCELLED
+- Exportación a CSV
+
+### Pagos (`/payments`)
+- Registro de pagos aplicados a uno o varios tickets
+- Métodos: transferencia, cheque, efectivo, tarjeta, otro
+- Exportación a CSV
+
+### Email Templates (`/email-templates`)
+- Templates HTML con variables interpoladas
+- Envío desde el detalle de un ticket vía Resend
+
+### Dashboard (`/dashboard`)
+- KPIs: monto pendiente, vencido, tasa de cobro
+- Gráfico de revenue mensual y distribución de estados
+- Tickets vencidos y pagos recientes
+- Filtro por empresa
+
+### Auditoría (`/audit`)
+- Registro append-only de operaciones críticas
+- Filtros por entidad, usuario y rango de fechas
+- Paginación server-side (50 por página)
+- Detalle JSON colapsable
+
+### Webhook Resend (`/api/webhooks/resend`)
+- Recibe `email.bounced` y `email.complained` → marca `EmailLog` como `BOUNCED`
+- Verificación HMAC-SHA256 (Svix)
+
+---
+
+## Estructura del proyecto
 
 ```
-cobranza-system/
-├── app/                    # rutas de Next.js (App Router)
-│   ├── (auth)/             # login, logout
-│   ├── (dashboard)/        # vistas autenticadas
-│   │   ├── companies/
-│   │   ├── contracts/
-│   │   ├── tickets/
-│   │   ├── payments/
-│   │   ├── templates/
-│   │   └── page.tsx        # dashboard principal
-│   └── api/                # solo webhooks externos (Fase 3)
-├── components/             # componentes UI reutilizables
-│   ├── ui/                 # shadcn primitives
-│   └── ...                 # componentes de dominio
-├── domain/                 # lógica de negocio pura
-│   ├── billing/
-│   ├── contracts/
-│   ├── payments/
-│   └── ...
-├── db/
-│   ├── schema.prisma
-│   ├── migrations/
-│   ├── seed.ts
-│   └── client.ts           # cliente Prisma exportado
-├── lib/                    # utilidades
-├── services/               # adapters externos (Resend, S3, etc.)
-├── jobs/                   # crons y workers
-├── prompts/                # (Fase 2) prompts de IA
-├── docker-compose.yml
-├── .env.example
-├── CLAUDE.md
-└── README.md
+/app              — Rutas Next.js (App Router)
+  /(auth)         — Login
+  /(dashboard)    — Vistas autenticadas
+  /actions        — Server Actions compartidas (export CSV, email send)
+  /api            — Routes: auth, webhooks/resend
+/components       — Componentes UI (presentación pura, sin lógica de negocio)
+  /ui             — shadcn primitives
+  /audit          — AuditLog table
+  /billing        — Tickets table y botones de acción
+  /shared         — ExportCsvButton
+  ...
+/domain           — Lógica de negocio pura (sin imports de Next ni Prisma directo)
+  /audit          — Queries + tipos (types.ts separado para Client Components)
+  /billing        — Generación y queries de tickets
+  /payments       — Registro y queries de pagos
+  /email          — Envío, interpolación, queries
+  ...
+/db               — schema.prisma, migrations/, client.ts
+/lib              — money.ts, csv.ts, rate-limit.ts, currencies.ts
+/services         — Adapters externos (Resend, S3)
 ```
+
+---
 
 ## Decisiones arquitectónicas
 
-Documentadas inline en `CLAUDE.md` y en docstrings de cada módulo de `/domain`. Las grandes:
-
 1. **Server Actions como API.** No REST endpoints salvo webhooks externos.
-2. **Lógica en `/domain`, no en actions.** Las actions son finos wrappers que validan input y delegan.
-3. **Soft delete con `deletedAt`** en entidades críticas.
-4. **AuditLog append-only** para todo lo financiero.
-5. **Single-tenant**, sin `tenant_id` en las tablas. Si en el futuro se hace SaaS, se refactoriza.
+2. **Lógica en `/domain`, no en actions.** Las actions validan input y delegan.
+3. **Client Components no importan Prisma/DB.** Los tipos compartidos viven en archivos `types.ts` sin imports de servidor.
+4. **Soft delete con `deletedAt`** en entidades críticas (Company, Client, Contract, Payment).
+5. **AuditLog append-only** para todo lo financiero y de configuración.
+6. **Money con `Decimal`** — nunca `number` nativo para montos.
+7. **Rate limiting in-memory** para envíos de email (10/min por usuario). Para multi-instancia usar Upstash.
+
+---
+
+## Notas para Fase 2
+
+> No implementar hasta que Fase 1 esté en producción y estable.
+
+- Los modelos `Document` y `ExtractionResult` están en el schema, sin lógica.
+- `/prompts` reservado para prompts de IA.
+- `/jobs` reservado para workers BullMQ + Redis.
+- Gmail/Drive requieren variables de entorno de Google OAuth (ya documentadas en `.env.example`).
+- El módulo OCR será un adapter pluggable: `AI_PROVIDER` determina el proveedor.
+
+**Decisiones de Fase 1 que no cambiar en Fase 2 sin discusión:**
+- Currencies en `lib/currencies.ts` (constante TS, no enum de Prisma) → agregar currencies sin migrations.
+- `AuditLog` es append-only — no editar ni borrar registros.

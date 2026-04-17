@@ -1,3 +1,10 @@
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Dashboard | Sistema de Cobranza",
+  description: "KPIs y métricas del sistema de cobranza",
+}
+
 import { Suspense } from "react"
 import { prisma } from "@/db/client"
 import { KpiCards } from "./_components/kpi-cards"

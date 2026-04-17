@@ -1,7 +1,13 @@
 export const dynamic = "force-dynamic"
 
+import type { Metadata } from "next"
 import { listContracts } from "@/domain/contracts/queries"
 import { ContractsTable } from "@/components/contracts/contracts-table"
+
+export const metadata: Metadata = {
+  title: "Contratos | Sistema de Cobranza",
+  description: "Contratos activos y archivados del sistema",
+}
 
 export default async function ContractsPage() {
   const contracts = await listContracts()

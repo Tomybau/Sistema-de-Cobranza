@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { Plus } from "lucide-react"
 
@@ -6,6 +7,11 @@ export const dynamic = "force-dynamic"
 import { Button } from "@/components/ui/button"
 import { CompaniesTable } from "@/components/companies/companies-table"
 import { listCompanies } from "@/domain/companies/queries"
+
+export const metadata: Metadata = {
+  title: "Empresas | Sistema de Cobranza",
+  description: "Gestión de empresas clientes",
+}
 
 export default async function CompaniesPage() {
   const companies = await listCompanies()
