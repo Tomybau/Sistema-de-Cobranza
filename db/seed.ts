@@ -22,10 +22,12 @@ async function main() {
   // ── 1. Admin user ────────────────────────────────────────────────────────────
   const passwordHash = await bcrypt.hash("admin1234", 12)
 
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@cobranza.local" },
-    update: {},
-    create: {
+  // Aseguramos que el usuario con ID dinámico anterior desaparezca para usar uno fijo
+  await prisma.user.deleteMany({ where: { email: "admin@cobranza.local" } })
+
+  const admin = await prisma.user.create({
+    data: {
+      id: "seed-admin-id",
       email: "admin@cobranza.local",
       name: "Admin Dev",
       passwordHash,
@@ -136,12 +138,12 @@ async function main() {
 
   // ── 5. Email template ─────────────────────────────────────────────────────────
   await prisma.emailTemplate.upsert({
-    where: { key: "ticket_reminder" },
+    where: { id: "seed-template-reminder" },
     update: {},
     create: {
-      key: "ticket_reminder",
+      id: "seed-template-reminder",
+      companyId: company1.id,
       name: "Recordatorio de cobro",
-      description: "Se envía cuando hay un ticket pendiente próximo a vencer",
       subject: "Recordatorio: Factura {{ticket.number}} vence el {{ticket.dueDate}}",
       bodyHtml: `<p>Estimado/a {{client.name}},</p>
 <p>Le recordamos que tiene una factura pendiente de pago:</p>
@@ -152,11 +154,10 @@ async function main() {
 </ul>
 <p>Por favor, efectúe el pago antes de la fecha de vencimiento para evitar cargos adicionales.</p>
 <p>Ante cualquier consulta, no dude en contactarnos.</p>`,
-      variables: ["client.name", "ticket.number", "ticket.amount", "ticket.currency", "ticket.dueDate"],
-      isActive: true,
+      isDefault: true,
     },
   })
-  console.log("✅  EmailTemplate: ticket_reminder")
+  console.log("✅  EmailTemplate: Recordatorio de cobro")
 
   console.log("\n🎉  Seed completado exitosamente.")
   console.log("   Login: admin@cobranza.local / admin1234")

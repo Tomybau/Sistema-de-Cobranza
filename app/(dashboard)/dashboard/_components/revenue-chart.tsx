@@ -8,12 +8,12 @@ interface RevenueChartProps {
   data: RevenueMonthData[]
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ color: string; name: string; value: number }>; label?: string }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-background border rounded-lg shadow-lg p-3 text-sm">
         <p className="font-semibold mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry, index) => (
           <div key={index} className="flex items-center gap-2 mb-1">
             <div
               className="w-3 h-3 rounded-sm"

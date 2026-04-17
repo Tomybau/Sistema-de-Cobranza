@@ -55,11 +55,13 @@ export function SendEmailDialog({ ticketId, templates, disabled }: SendEmailDial
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" disabled={disabled || templates.length === 0} title={templates.length === 0 ? "No hay templates para esta empresa" : disabled ? "No se puede enviar email para DRAFT/CANCELLED" : ""}>
-          <Send className="mr-2 h-4 w-4" />
-          Enviar Email
-        </Button>
+      <DialogTrigger
+        render={
+          <Button variant="outline" disabled={disabled || templates.length === 0} title={templates.length === 0 ? "No hay templates para esta empresa" : disabled ? "No se puede enviar email para DRAFT/CANCELLED" : ""} />
+        }
+      >
+        <Send className="mr-2 h-4 w-4" />
+        Enviar Email
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -72,7 +74,7 @@ export function SendEmailDialog({ ticketId, templates, disabled }: SendEmailDial
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Template a utilizar</label>
-            <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+            <Select value={selectedTemplate} onValueChange={(v) => { if (v !== null) setSelectedTemplate(v) }}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleccione un template" />
               </SelectTrigger>

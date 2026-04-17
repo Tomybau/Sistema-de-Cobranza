@@ -2,9 +2,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts"
+import type { PieLabelRenderProps } from "recharts"
 import type { TicketStatusSummaryData } from "../_data/get-ticket-status-summary"
 import { useMemo } from "react"
-import { BillingTicketStatus } from "@prisma/client"
+// Local type to avoid importing @prisma/client in the client bundle
+type BillingTicketStatus = "PENDING" | "SENT" | "PAID" | "PARTIAL" | "OVERDUE" | "CANCELLED"
 
 interface TicketStatusChartProps {
   data: TicketStatusSummaryData[]
@@ -28,7 +30,7 @@ const STATUS_LABELS: Record<BillingTicketStatus, string> = {
   CANCELLED: "Cancelados",
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: TicketStatusSummaryData & { name: string } }> }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload
     return (
@@ -58,7 +60,10 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null
 }
 
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
+const renderCustomizedLabel = (props: PieLabelRenderProps) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props as {
+    cx: number; cy: number; midAngle: number; innerRadius: number; outerRadius: number; percent: number
+  }
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   const RADIAN = Math.PI / 180;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);

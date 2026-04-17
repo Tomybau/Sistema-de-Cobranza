@@ -1,13 +1,16 @@
 "use client"
 
+import type { ComponentType } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
 import type { RecentPaymentData } from "../_data/get-recent-payments"
-import { PaymentMethod } from "@prisma/client"
 import { CreditCard, Banknote, LandPlot, Building, HelpCircle } from "lucide-react"
+
+// Local type to avoid importing @prisma/client in the client bundle
+type PaymentMethod = "BANK_TRANSFER" | "CHECK" | "CASH" | "CREDIT_CARD" | "OTHER"
 
 interface RecentPaymentsProps {
   data: RecentPaymentData[]
@@ -21,7 +24,7 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
   OTHER: "Otro",
 }
 
-const METHOD_ICONS: Record<PaymentMethod, any> = {
+const METHOD_ICONS: Record<PaymentMethod, ComponentType<{ className?: string }>> = {
   BANK_TRANSFER: Building,
   CHECK: LandPlot,
   CASH: Banknote,

@@ -25,8 +25,8 @@ export async function getTicketStatusSummary({ companyId }: { companyId?: string
     const found = grouped.find((g) => g.status === status)
     return {
       status,
-      count: found?._count._all || 0,
-      amount: found?._sum.amount?.toNumber() || 0,
+      count: found?._count?._all || 0,
+      amount: found?._sum?.amount?.toNumber() || 0,
     }
   })
 

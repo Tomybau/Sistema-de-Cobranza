@@ -34,7 +34,7 @@ const formSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   subject: z.string().min(1, "El asunto es obligatorio"),
   bodyHtml: z.string().min(1, "El cuerpo del email es obligatorio"),
-  isDefault: z.boolean().default(false),
+  isDefault: z.boolean(),
 })
 
 type FormData = z.infer<typeof formSchema>

@@ -163,8 +163,8 @@ export function PaymentsTable({ data }: PaymentsTableProps) {
     getFilteredRowModel: getFilteredRowModel(),
   })
 
-      // Apply column-level filters directly
-  const ticketCol = table.getColumn("ticketNumber")
+  // Apply column-level filters directly
+  const paymentCol = table.getColumn("paymentNumber")
   const statusCol = table.getColumn("status")
 
   const handleTicketFilterChange = (value: string) => {

@@ -1,6 +1,5 @@
 import { Metadata } from "next"
 import { TemplateForm } from "@/components/email/template-form"
-import { getCompaniesAction } from "@/app/actions/companies"
 
 export const metadata: Metadata = {
   title: "Nuevo Template | Sistema de Cobranza",
