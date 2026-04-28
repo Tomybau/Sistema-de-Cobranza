@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { CancelPaymentButton } from "@/components/payments/cancel-payment-button"
+import { Paperclip } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "Detalle del Pago | Sistema de Cobranza",
@@ -130,6 +131,28 @@ export default async function PaymentDetailPage({
           <CardContent className="pt-6">
             <h4 className="text-sm font-semibold mb-2">Notas</h4>
             <p className="text-sm text-muted-foreground">{payment.notes}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {payment.attachmentKey && (
+        <Card>
+          <CardContent className="pt-6 flex items-center gap-3">
+            <Paperclip className="h-5 w-5 text-muted-foreground shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Comprobante adjunto</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {payment.attachmentName ?? payment.attachmentKey.split("/").pop()}
+              </p>
+            </div>
+            <a
+              href={`/api/files/${payment.attachmentKey}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline shrink-0"
+            >
+              Ver comprobante
+            </a>
           </CardContent>
         </Card>
       )}

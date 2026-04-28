@@ -35,11 +35,12 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  auditLogs        AuditLog[]
-  paymentsRegistered Payment[]     @relation("PaymentRegisteredBy")
-  documentsValidated ExtractionResult[] @relation("ExtractionValidatedBy")
-  accounts         Account[]
-  sessions         Session[]
+  auditLogs                  AuditLog[]
+  paymentsRegistered         Payment[]          @relation("PaymentRegisteredBy")
+  documentsValidated         ExtractionResult[] @relation("ExtractionValidatedBy")
+  contractDocumentsUploaded  ContractDocument[] @relation("ContractDocumentsUploaded")
+  accounts                   Account[]
+  sessions                   Session[]
 
   @@index([email])
 }
@@ -153,11 +154,12 @@ model Contract {
   updatedAt       DateTime       @updatedAt
   deletedAt       DateTime?
 
-  company        Company         @relation(fields: [companyId], references: [id])
-  items          ContractItem[]
-  billingTickets BillingTicket[]
-  documents      Document[]
-  pricingTables  PricingTable[]
+  company           Company            @relation(fields: [companyId], references: [id])
+  items             ContractItem[]
+  billingTickets    BillingTicket[]
+  documents         Document[]
+  pricingTables     PricingTable[]
+  contractDocuments ContractDocument[]
 
   @@index([companyId])
   @@index([status])
@@ -192,6 +194,11 @@ model ContractItem {
 
   // Recurrencia (solo aplica a RECURRING_*)
   billingDayOfMonth Int? // 1-28 típicamente
+
+  // Cuota incluida y duración (extraídos del contrato; informativos para emisión)
+  quotaLimit     Decimal? @db.Decimal(12, 4) // ej: 2500 conversaciones/mes incluidas
+  quotaUnit      String?                      // ej: "conversaciones", "horas"
+  durationMonths Int?                         // meses de vigencia del ítem recurrente
 
   isActive  Boolean   @default(true)
   startDate DateTime?
@@ -297,6 +304,8 @@ model Payment {
   status           PaymentStatus @default(PROCESSED)
   reference        String?       // número de transferencia, cheque, etc.
   notes            String?
+  attachmentKey    String?       // path en storage
+  attachmentName   String?       // nombre original del archivo
   createdById      String
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -449,6 +458,36 @@ enum ExtractionStatus {
   VALIDATED
   REJECTED
   CORRECTED
+}
+
+// =============================================================================
+// DOCUMENTOS DE CONTRATOS (OCR — Session 9)
+// =============================================================================
+
+model ContractDocument {
+  id          String    @id @default(cuid())
+  contractId  String?
+  storageKey  String
+  fileName    String
+  mimeType    String
+  ocrRawText  String?   @db.Text
+  ocrExtracted Json?
+  ocrStatus   OcrStatus @default(PENDING)
+  uploadedBy  String
+  uploadedAt  DateTime  @default(now())
+
+  contract  Contract? @relation(fields: [contractId], references: [id])
+  uploader  User      @relation("ContractDocumentsUploaded", fields: [uploadedBy], references: [id])
+
+  @@index([contractId])
+  @@index([ocrStatus])
+}
+
+enum OcrStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
 }
 
 // =============================================================================

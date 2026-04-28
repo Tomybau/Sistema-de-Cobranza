@@ -1,5 +1,10 @@
 node_modules
 .next
 .env
+.env.local
 .claude
 .gemini
+uploads/
+bun.lock
+tsconfig.tsbuildinfo
+*.tsbuildinfo

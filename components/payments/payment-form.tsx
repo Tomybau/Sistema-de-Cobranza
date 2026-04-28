@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { getClientTicketsAction, createPaymentAction } from "@/app/actions/payments"
 import {
@@ -26,6 +26,7 @@ import { formatMoney } from "@/lib/money"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { toast } from "sonner"
+import { Paperclip, X } from "lucide-react"
 import type { PaymentMethod } from "@prisma/client"
 
 type ClientOption = {
@@ -56,6 +57,10 @@ export function PaymentForm({ clients }: PaymentFormProps) {
   // Tickets & Allocations State
   const [tickets, setTickets] = useState<TicketItem[]>([])
   const [allocations, setAllocations] = useState<Record<string, string>>({})
+
+  // Attachment state
+  const [attachment, setAttachment] = useState<File | null>(null)
+  const attachmentInputRef = useRef<HTMLInputElement>(null)
 
   const handleClientChange = async (selectedClientId: string | null) => {
     const validId = selectedClientId ?? ""
@@ -139,16 +144,19 @@ export function PaymentForm({ clients }: PaymentFormProps) {
     }
 
     startTransition(async () => {
-      const res = await createPaymentAction({
-        companyId,
-        clientId,
-        grossAmount: parsedGrossAmt.toString(),
-        method: method as PaymentMethod,
-        paymentDate: new Date(paymentDate), // standard parsing
-        reference: reference || undefined,
-        notes: notes || undefined,
-        allocations: finalAllocations
-      })
+      const res = await createPaymentAction(
+        {
+          companyId,
+          clientId,
+          grossAmount: parsedGrossAmt.toString(),
+          method: method as PaymentMethod,
+          paymentDate: new Date(paymentDate),
+          reference: reference || undefined,
+          notes: notes || undefined,
+          allocations: finalAllocations,
+        },
+        attachment ?? undefined
+      )
 
       if (!res.success) {
         toast.error(res.error)
@@ -344,6 +352,50 @@ export function PaymentForm({ clients }: PaymentFormProps) {
           </div>
         )}
       </CardContent>
+      {/* Attachment */}
+      <div className="px-6 pb-4">
+        <input
+          ref={attachmentInputRef}
+          type="file"
+          accept=".pdf,.png,.jpg,.jpeg"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f && f.size > 5 * 1024 * 1024) {
+              toast.error("El archivo supera el límite de 5MB")
+              e.target.value = ""
+              return
+            }
+            setAttachment(f ?? null)
+          }}
+        />
+        {attachment ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground rounded-md border px-3 py-2">
+            <Paperclip className="h-4 w-4 shrink-0" />
+            <span className="flex-1 truncate">{attachment.name}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setAttachment(null)
+                if (attachmentInputRef.current) attachmentInputRef.current.value = ""
+              }}
+              className="shrink-0 hover:text-destructive"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => attachmentInputRef.current?.click()}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Paperclip className="h-4 w-4" />
+            Adjuntar comprobante (PDF, JPG, PNG — opcional, máx 5MB)
+          </button>
+        )}
+      </div>
+
       <CardFooter className="flex justify-end gap-3">
         <Button variant="outline" onClick={() => router.push("/payments")} disabled={isPending}>
           Cancelar

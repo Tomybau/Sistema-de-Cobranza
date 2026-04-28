@@ -1,0 +1,54 @@
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat openssl
+
+# ── Dependencias ──────────────────────────────────────────────────────────────
+FROM base AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+RUN npx prisma generate --schema=db/schema.prisma
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV DATABASE_URL="postgresql://x:x@localhost:5432/x"
+
+RUN npm run build
+
+# ── Runner ────────────────────────────────────────────────────────────────────
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# Prisma schema + migrations para correr en startup
+COPY --from=builder --chown=nextjs:nodejs /app/db ./db
+
+# Prisma CLI + engines para migrate deploy
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+COPY --chown=nextjs:nodejs entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["./entrypoint.sh"]

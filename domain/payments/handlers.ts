@@ -15,6 +15,8 @@ export interface RegisterPaymentInput {
   createdById: string
   ipAddress?: string
   userAgent?: string
+  attachmentKey?: string
+  attachmentName?: string
 }
 
 export async function registerPayment(input: RegisterPaymentInput) {
@@ -49,6 +51,8 @@ export async function registerPayment(input: RegisterPaymentInput) {
         notes: input.notes,
         status: "PROCESSED",
         createdById: input.createdById,
+        attachmentKey: input.attachmentKey,
+        attachmentName: input.attachmentName,
       }
     })
 
