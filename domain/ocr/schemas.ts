@@ -27,21 +27,41 @@ export const ocrContractItemSchema = z.object({
   quotaUnit: z.string().nullable(),
   pricingTableName: z.string().nullable(),
   pricingTiers: z.array(ocrPricingTierSchema).nullable(),
+  // Nuevos campos para INSTALLMENT con hitos
+  milestoneLabels: z.array(z.string()).nullable(),  // etiqueta por cuota
+  breakdownNote: z.string().nullable(),              // composición del monto
   reasoning: z.string().nullable(),
+})
+
+export const ocrCoContractorSchema = z.object({
+  companyName: z.string(),
+  taxId: z.string().nullable(),
+  taxIdType: z.string().nullable(),
+  sharePercent: z.number().nullable(), // porcentaje de facturación (ej: 46 para 46%)
 })
 
 export const ocrContractResultSchema = z.object({
   client: z.object({
-    name: z.string(),
+    name: z.string(),                    // razón social de la empresa cliente
     email: z.string().nullable(),
     phone: z.string().nullable(),
     taxId: z.string().nullable(),
+    taxIdType: z.string().nullable(),    // "RTN", "Ficha Electrónica", "RUC", etc.
     address: z.string().nullable(),
+    signatoryName: z.string().nullable(), // nombre del firmante (rep. legal)
+    signatoryId: z.string().nullable(),   // cédula/DNI del firmante
+    billingContact: z.object({
+      name: z.string().nullable(),
+      email: z.string().nullable(),
+      phone: z.string().nullable(),
+    }).nullable(),                        // contacto de cobros si es diferente al firmante
   }),
   contract: z.object({
     name: z.string(),
+    contractNumber: z.string().nullable(), // número de contrato si está explícito
     startDate: z.string().nullable(),
     endDate: z.string().nullable(),
+    signatureDate: z.string().nullable(),  // fecha de firma
     billingCycle: z.enum(["MONTHLY", "QUARTERLY", "ANNUAL"]).nullable(),
     currency: z.string().nullable(),
     lateFeePct: z.number().nullable(),
@@ -57,9 +77,11 @@ export const ocrContractResultSchema = z.object({
       tiers: z.array(ocrPricingTierSchema),
     })
     .nullable(),
+  coContractors: z.array(ocrCoContractorSchema).nullable(), // para contratos multi-empresa
   confidence: z.enum(["HIGH", "MEDIUM", "LOW"]),
 })
 
 export type OcrPricingTier = z.infer<typeof ocrPricingTierSchema>
 export type OcrContractResult = z.infer<typeof ocrContractResultSchema>
 export type OcrContractItem = z.infer<typeof ocrContractItemSchema>
+export type OcrCoContractor = z.infer<typeof ocrCoContractorSchema>

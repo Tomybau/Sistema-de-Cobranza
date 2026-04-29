@@ -4,6 +4,7 @@
 export type NewCompanyInput = {
   legalName: string
   taxId?: string
+  taxIdType?: string
   email?: string
   phone?: string
   address?: string
@@ -14,6 +15,7 @@ export type NewClientInput = {
   email: string
   phone?: string
   role?: string
+  clientType?: "LEGAL_REP" | "BILLING_CONTACT" | "GENERAL"
 }
 
 export type DraftPricingTier = {
@@ -31,6 +33,8 @@ export type DraftItemInput = {
   billingDayOfMonth?: number
   totalAmount?: string
   installments?: number
+  milestoneLabels?: string[]    // etiqueta por cuota (INSTALLMENT)
+  breakdownNote?: string         // composición del monto (INSTALLMENT con prepago)
   newPricingTableName?: string
   newPricingTableTiers?: DraftPricingTier[]
   quotaLimit?: string

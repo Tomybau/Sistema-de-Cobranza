@@ -194,6 +194,8 @@ export function calculateTicketsForContract(params: {
           currency: contract.currency,
           pricingTableId: null,
           installmentNum: null,
+          description: null,
+          breakdownNote: item.breakdownNote,
           status: "READY",
         })
         break
@@ -225,10 +227,12 @@ export function calculateTicketsForContract(params: {
           periodEnd: period.periodEnd,
           issueDate: period.issueDate,
           dueDate: period.dueDate,
-          amount: null, // requires user input
+          amount: null,
           currency: contract.currency,
           pricingTableId: item.pricingTableId,
           installmentNum: null,
+          description: null,
+          breakdownNote: null,
           status: "NEEDS_QUANTITY",
         })
         break
@@ -242,7 +246,6 @@ export function calculateTicketsForContract(params: {
           "ONE_TIME",
           item.id
         )
-        // ONE_TIME: skip if any ticket already exists for this item (regardless of period)
         const alreadyGenerated = existingTickets.some((t) => t.contractItemId === item.id)
         if (alreadyGenerated) break
 
@@ -262,6 +265,8 @@ export function calculateTicketsForContract(params: {
           currency: contract.currency,
           pricingTableId: null,
           installmentNum: null,
+          description: null,
+          breakdownNote: item.breakdownNote,
           status: "READY",
         })
         break
@@ -273,7 +278,6 @@ export function calculateTicketsForContract(params: {
         const itemStartDate = item.startDate ?? contract.startDate
         const zonedItemStart = inTZ(itemStartDate)
 
-        // installmentNum is 1-based; calculated in TZ to avoid server-TZ artifacts
         const installmentNum =
           differenceInCalendarMonths(zonedPeriod, zonedItemStart) + 1
 
@@ -295,10 +299,13 @@ export function calculateTicketsForContract(params: {
           issueDate,
         })
 
-        // Decimal division — never JS /
         const perInstallment = new Prisma.Decimal(item.totalAmount)
           .div(item.installments)
           .toDecimalPlaces(2)
+
+        // Usar el label del hito si existe, sino null
+        const milestoneDescription =
+          item.milestoneLabels?.[installmentNum - 1] ?? null
 
         drafts.push({
           contractItemId: item.id,
@@ -313,6 +320,8 @@ export function calculateTicketsForContract(params: {
           currency: contract.currency,
           pricingTableId: null,
           installmentNum,
+          description: milestoneDescription,
+          breakdownNote: item.breakdownNote,
           status: "READY",
         })
         break

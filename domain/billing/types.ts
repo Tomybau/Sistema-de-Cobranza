@@ -23,6 +23,8 @@ export interface BillingContractItem {
   pricingTable: BillingPricingTable | null
   totalAmount: string | null
   installments: number | null
+  milestoneLabels: string[] | null  // etiqueta por cuota (INSTALLMENT)
+  breakdownNote: string | null       // composición del monto (INSTALLMENT con prepago)
   billingDayOfMonth: number | null
   isActive: boolean
   startDate: Date | null
@@ -50,13 +52,15 @@ export interface TicketDraft {
   itemName: string
   type: BillingContractItem["type"]
   ticketNumber: string
-  periodStart: Date | null // null for ONE_TIME
+  periodStart: Date | null
   periodEnd: Date | null
   issueDate: Date
   dueDate: Date
-  amount: string | null // null = NEEDS_QUANTITY; Decimal string when ready
+  amount: string | null
   currency: string
   pricingTableId: string | null
   installmentNum: number | null
+  description: string | null    // etiqueta del hito (ej: "Firma del contrato")
+  breakdownNote: string | null  // desglose del monto
   status: TicketDraftStatus
 }

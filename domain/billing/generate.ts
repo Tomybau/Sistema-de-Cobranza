@@ -78,6 +78,8 @@ export async function generateBillingTickets(
       pricingTable,
       totalAmount: item.totalAmount?.toString() ?? null,
       installments: item.installments ?? null,
+      milestoneLabels: Array.isArray(item.milestoneLabels) ? (item.milestoneLabels as string[]) : null,
+      breakdownNote: item.breakdownNote ?? null,
       billingDayOfMonth: item.billingDayOfMonth ?? null,
       isActive: item.isActive,
       startDate: item.startDate,
@@ -167,6 +169,8 @@ export async function generateBillingTickets(
               draft.type === "RECURRING_VARIABLE" && variableQuantities[draft.contractItemId]
                 ? new Prisma.Decimal(variableQuantities[draft.contractItemId])
                 : null,
+            description: draft.description ?? null,
+            breakdownNote: draft.breakdownNote ?? null,
             status: "PENDING",
           },
         })
@@ -264,6 +268,8 @@ export async function previewBillingTickets(
       : null,
     totalAmount: item.totalAmount?.toString() ?? null,
     installments: item.installments ?? null,
+    milestoneLabels: Array.isArray(item.milestoneLabels) ? (item.milestoneLabels as string[]) : null,
+    breakdownNote: item.breakdownNote ?? null,
     billingDayOfMonth: item.billingDayOfMonth ?? null,
     isActive: item.isActive,
     startDate: item.startDate,

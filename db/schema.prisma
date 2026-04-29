@@ -85,6 +85,12 @@ enum UserRole {
   OPERATOR
 }
 
+enum ClientType {
+  LEGAL_REP       // representante legal que firma el contrato
+  BILLING_CONTACT // contacto de cobros (recibe mails, maneja pagos)
+  GENERAL
+}
+
 // =============================================================================
 // CLIENTES (empresas y personas de contacto)
 // =============================================================================
@@ -94,6 +100,7 @@ model Company {
   legalName     String
   tradeName     String?
   taxId         String?   @unique
+  taxIdType     String?   // "RTN", "Ficha Electrónica", "RUC", etc.
   email         String?
   phone         String?
   address       String?
@@ -115,12 +122,13 @@ model Company {
 
 model Client {
   id        String    @id @default(cuid())
-  companyId String
-  fullName  String
-  role      String?   // ej: "Owner", "Accountant", "Billing contact"
-  email     String
-  phone     String?
-  isPrimary Boolean   @default(false)
+  companyId  String
+  fullName   String
+  role       String?     // free text: "Owner", "Accountant", etc.
+  clientType ClientType  @default(GENERAL)
+  email      String
+  phone      String?
+  isPrimary  Boolean     @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -147,8 +155,10 @@ model Contract {
   startDate       DateTime
   endDate         DateTime?      // null = sin fecha de fin
   status          ContractStatus @default(ACTIVE)
-  paymentTermsDays Int           @default(15) // días para vencimiento desde emisión
+  paymentTermsDays Int           @default(15)
   lateFeePercent  Decimal        @default(0) @db.Decimal(5, 2)
+  signatureDate   DateTime?      // fecha de firma del contrato
+  coContractors   Json?          // empresas co-contratantes para contratos multi-empresa
   notes           String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -195,10 +205,13 @@ model ContractItem {
   // Recurrencia (solo aplica a RECURRING_*)
   billingDayOfMonth Int? // 1-28 típicamente
 
-  // Cuota incluida y duración (extraídos del contrato; informativos para emisión)
-  quotaLimit     Decimal? @db.Decimal(12, 4) // ej: 2500 conversaciones/mes incluidas
-  quotaUnit      String?                      // ej: "conversaciones", "horas"
-  durationMonths Int?                         // meses de vigencia del ítem recurrente
+  // Cuota incluida y duración
+  quotaLimit      Decimal? @db.Decimal(12, 4)
+  quotaUnit       String?
+  durationMonths  Int?
+  // Metadata de hitos y desglose (para INSTALLMENT)
+  milestoneLabels Json?    // String[] — etiqueta por cuota (ej: ["Firma", "Producción", "Desarrollo"])
+  breakdownNote   String?  // explicación del monto (ej: "Impl. Fase I $1,600 + 15 meses $7,500")
 
   isActive  Boolean   @default(true)
   startDate DateTime?
@@ -263,8 +276,10 @@ model BillingTicket {
   dueDate        DateTime
   amount         Decimal             @db.Decimal(12, 2)
   currency       String              @default("USD")
-  variableQuantity Decimal?          @db.Decimal(12, 4) // para items variables
+  variableQuantity Decimal?          @db.Decimal(12, 4)
   status         BillingTicketStatus @default(PENDING)
+  description    String?             // etiqueta del hito (ej: "Firma del contrato")
+  breakdownNote  String?             // desglose del monto (ej: "Impl. Fase I + 15 meses")
   notes          String?
   paidAmount     Decimal             @default(0) @db.Decimal(12, 2)
   createdAt      DateTime            @default(now())

@@ -8,83 +8,173 @@ Estructura de salida:
 
 {
   "client": {
-    "name": "string",                       // razón social del cliente (no del proveedor)
-    "email": "string | null",
+    "name": "string",                        // razón social de la empresa cliente (NO del proveedor)
+    "email": "string | null",                // email de la empresa (si figura)
     "phone": "string | null",
-    "taxId": "string | null",               // CUIT/RUT/RTN/ID fiscal
-    "address": "string | null"
+    "taxId": "string | null",                // ID fiscal de la empresa (RTN, Ficha Electrónica, RUC, etc.)
+    "taxIdType": "string | null",            // tipo de ID: "RTN", "Ficha Electrónica", "RUC", "CUIT", etc.
+    "address": "string | null",
+    "signatoryName": "string | null",        // nombre completo de la PERSONA FÍSICA que firma por el cliente
+    "signatoryId": "string | null",          // cédula, DNI o pasaporte del firmante
+    "billingContact": {                      // contacto de cobros (puede ser null si es el mismo firmante)
+      "name": "string | null",
+      "email": "string | null",
+      "phone": "string | null"
+    } | null
   },
   "contract": {
-    "name": "string",                       // título del contrato (corto)
+    "name": "string",                        // título corto del contrato
+    "contractNumber": "string | null",       // número de contrato si está explícito (ej: "037-23")
     "startDate": "YYYY-MM-DD | null",
     "endDate": "YYYY-MM-DD | null",
+    "signatureDate": "YYYY-MM-DD | null",    // fecha de firma al pie del contrato
     "billingCycle": "MONTHLY | QUARTERLY | ANNUAL | null",
     "currency": "USD | PAB | HNL | EUR | ARS | MXN | null",
-    "lateFeePct": "number | null",          // % mora (ej: 2 para 2%)
-    "paymentTermsDays": "number | null",    // días para vencimiento desde factura (ej: 60)
-    "jurisdiction": "string | null",        // país/ciudad de jurisdicción legal
+    "lateFeePct": "number | null",
+    "paymentTermsDays": "number | null",
+    "jurisdiction": "string | null",
     "notes": "string | null"
   },
   "items": [
     {
       "type": "RECURRING_FIXED | RECURRING_VARIABLE | ONE_TIME | INSTALLMENT | UNKNOWN",
-      "name": "string",                     // nombre corto (ej: "Mensualidad chatbot")
+      "name": "string",
       "description": "string | null",
-      "fixedAmount": "number | null",       // monto MENSUAL si RECURRING_FIXED
-      "totalAmount": "number | null",       // total acumulado para ONE_TIME / INSTALLMENT
-      "installments": "number | null",      // cantidad de cuotas para INSTALLMENT
-      "durationMonths": "number | null",    // meses de vigencia del ítem recurrente
-      "billingDayOfMonth": "number | null", // 1-28
-      "quotaLimit": "number | null",        // ej: 2500 (conversaciones/mes incluidas)
-      "quotaUnit": "string | null",         // ej: "conversaciones", "horas", "mensajes"
-      "pricingTableName": "string | null",  // si tiene tabla propia (variable)
-      "pricingTiers": [                     // null si no aplica
+      "fixedAmount": "number | null",
+      "totalAmount": "number | null",
+      "installments": "number | null",
+      "milestoneLabels": ["string", ...] | null,  // para INSTALLMENT: 1 label por cuota en orden
+      "breakdownNote": "string | null",            // para INSTALLMENT: de qué está compuesto el monto
+      "durationMonths": "number | null",
+      "billingDayOfMonth": "number | null",
+      "quotaLimit": "number | null",
+      "quotaUnit": "string | null",
+      "pricingTableName": "string | null",
+      "pricingTiers": [
         {
           "fromQuantity": "number",
-          "toQuantity": "number | null",    // null = sin tope superior
+          "toQuantity": "number | null",
           "unitPrice": "number | null",
-          "flatFee": "number | null",       // fee fijo del rango si aplica
+          "flatFee": "number | null",
           "label": "string | null"
         }
       ] | null,
-      "reasoning": "string | null"          // breve justificación (1 frase) del clasificador
+      "reasoning": "string | null"
     }
   ],
-  "overagePricingTable": {                  // tabla de excedentes GLOBAL del contrato (no asociada a un ítem específico)
+  "overagePricingTable": {
     "name": "string | null",
-    "unit": "string | null",                // ej: "mensajes WhatsApp"
+    "unit": "string | null",
     "tiers": [ ... mismo schema que pricingTiers ]
   } | null,
+  "coContractors": [                         // solo si hay MÁS de una empresa cliente firmante
+    {
+      "companyName": "string",
+      "taxId": "string | null",
+      "taxIdType": "string | null",
+      "sharePercent": "number | null"         // % de la facturación que le corresponde
+    }
+  ] | null,
   "confidence": "HIGH | MEDIUM | LOW"
 }
 
-Reglas de clasificación de ítems (razoná antes de elegir):
+────────────────────────────────────────────────────────────
+REGLAS DE EXTRACCIÓN DEL CLIENTE
+────────────────────────────────────────────────────────────
 
-1. **RECURRING_FIXED** — pago mensual fijo, mismo monto todos los meses.
-   Ej: "mensualidad de $500/mes por 15 meses" → fixedAmount=500, durationMonths=15.
-   Si menciona límite de uso ("incluye 2500 conversaciones"), poner quotaLimit=2500, quotaUnit="conversaciones".
+client.name: razón social de la EMPRESA que paga (el cliente), NO del proveedor SmartBot.
+  Ej: "JAPI FINANCING SERVICES, S.A." — no "SMARTBOT LA INC"
 
-2. **RECURRING_VARIABLE** — mensualidad calculada por una tabla (ej: por horas, por consumo). Llenar pricingTiers con los rangos.
+client.taxId / taxIdType: el identificador fiscal de la EMPRESA cliente.
+  - Honduras: "RTN XXXXXXXXXXXXXXXXX" → taxId="08019005011717", taxIdType="RTN"
+  - Panamá: "Ficha Electrónica XXXXXXXXX" → taxId="155721821", taxIdType="Ficha Electrónica"
+  - Otros: usar el nombre del documento (RUC, CUIT, RUT, NIT, etc.)
 
-3. **ONE_TIME** — un solo pago. Ej: "setup fee $1,600 pagado a la firma".
+client.signatoryName + signatoryId: la PERSONA FÍSICA que firma por el cliente.
+  Ej: "Mariela del Carmen Domínguez Chanis, cédula No. 8-442-571"
+  → signatoryName="Mariela del Carmen Domínguez Chanis", signatoryId="8-442-571"
 
-4. **INSTALLMENT** — total dividido en N cuotas iguales o casi iguales.
-   Ej: "Setup $2,400 pagado 50% firma + 50% salida producción" → totalAmount=2400, installments=2.
-   Ej: "Implementación $9,000 en 3 cuotas" → totalAmount=9000, installments=3.
+client.billingContact: si el contrato lista explícitamente un contacto distinto al firmante
+  para recibir notificaciones / facturas / cobros (con nombre, email o teléfono propio).
+  Si no hay un contacto de cobros separado, usar null.
+  Ej: "Atención: Eric Zambrano, Teléfono: 6557-7779, Correo: ezambrano@ena.com.pa"
+  → billingContact.name="Eric Zambrano", email="ezambrano@ena.com.pa", phone="6557-7779"
 
-5. **UNKNOWN** — usalo si NO podés decidir con confianza. Llená reasoning explicando la duda.
+────────────────────────────────────────────────────────────
+REGLAS DE CLASIFICACIÓN DE ÍTEMS
+────────────────────────────────────────────────────────────
 
-Reglas de la tabla de excedentes (overagePricingTable):
-- Si ves una tabla aparte tipo "Envíos masivos por WhatsApp: 3000→$300, 10000→$950..." y NO está pegada a un ítem específico, ponela en overagePricingTable.
-- Si la tabla es claramente la facturación variable de un único ítem, ponela dentro de pricingTiers de ese ítem.
+1. RECURRING_FIXED — mensualidad fija igual todos los meses.
+   - fixedAmount = monto mensual
+   - durationMonths = cantidad de meses si está especificado
+   - quotaLimit / quotaUnit = límite incluido si se menciona (ej: 2500 conversaciones/mes)
+   Ej: "15 meses de mensualidad de 2,500 conversaciones/mes a $500/mes"
+   → fixedAmount=500, durationMonths=15, quotaLimit=2500, quotaUnit="conversaciones"
 
-Reglas generales:
-- Si un campo no está en el documento, usar null. NUNCA inventes valores.
-- Fechas en ISO 8601 (YYYY-MM-DD). Si solo está el mes, usar día 1.
-- lateFeePct es un porcentaje numérico (ej: 2 para 2%). Si dice "2% mensual" → 2.
-- paymentTermsDays: extraer "60 días" / "30 días" → número. Si no se menciona, null.
-- currency: convertir "USD" / "US$" / "dólares estadounidenses" → "USD". "balboas" / "B/." → "PAB". "lempiras" / "L." → "HNL". "pesos argentinos" → "ARS". "pesos mexicanos" → "MXN".
-- "name" del cliente: razón social del CLIENTE que va a pagar, NO del proveedor del servicio.
+2. RECURRING_VARIABLE — mensualidad que varía según tabla de volumen/consumo.
+   - pricingTiers = filas de la tabla (fromQuantity, toQuantity, flatFee para ese rango)
+   Ej: tabla "1,000 conv → $480 / 2,500 conv → $960 / ..."
+
+3. ONE_TIME — pago único sin cuotas.
+   - totalAmount = monto único
+   Ej: "setup fee $1,600 pagado a la firma"
+
+4. INSTALLMENT — total dividido en N cuotas con hitos específicos de pago.
+   - totalAmount = monto TOTAL (suma de todas las cuotas)
+   - installments = cantidad de cuotas
+   - milestoneLabels = array con 1 label por cuota, en orden cronológico
+   - breakdownNote = si el total es la suma de varios componentes, describirlos
+
+   Ejemplos:
+   a) "Implementación $1,860 pagado 30% firma + 30% listo en producción + 40% desarrollo terminado"
+      → type=INSTALLMENT, totalAmount=1860, installments=3
+      → milestoneLabels=["Firma del contrato", "Listo en producción", "Desarrollo terminado"]
+      → breakdownNote=null (es un solo concepto)
+
+   b) "50% ($4,950) en la firma + 50% ($4,950) con término del desarrollo.
+       Desglose: Impl. Fase I $1,600 + Impl. Fase II $800 + 15 meses $7,500 = $9,900"
+      → type=INSTALLMENT, totalAmount=9900, installments=2
+      → milestoneLabels=["Firma del contrato", "Salida a producción"]
+      → breakdownNote="Impl. Fase I $1,600 + Impl. Fase II $800 + 15 meses $7,500"
+
+   c) "40% firma + 40% sistema listo para pruebas + 20% término del desarrollo. Total $71,700"
+      → type=INSTALLMENT, totalAmount=71700, installments=3
+      → milestoneLabels=["Firma del contrato", "Sistema disponible para pruebas", "Término del desarrollo"]
+
+   CRÍTICO: si el monto total INCLUYE mensualidades prepagadas (no se generarán tickets mensuales),
+   consignarlo en breakdownNote. NO crear un ítem RECURRING_FIXED separado para esas mensualidades.
+
+5. UNKNOWN — si no podés decidir con confianza. Explicar en reasoning.
+
+────────────────────────────────────────────────────────────
+REGLAS DE TABLAS DE EXCEDENTES (overagePricingTable)
+────────────────────────────────────────────────────────────
+
+- Si hay una tabla aparte de "Envíos masivos WhatsApp", "excedentes", etc., que NO está
+  pegada a ningún ítem recurrente específico → va en overagePricingTable.
+- Si la tabla define el precio variable de UN ítem puntual → va dentro de ese ítem en pricingTiers.
+- Si no hay tabla de excedentes → overagePricingTable = null.
+
+────────────────────────────────────────────────────────────
+REGLAS PARA CONTRATOS MULTI-EMPRESA (coContractors)
+────────────────────────────────────────────────────────────
+
+Si hay MÁS de una empresa firmando como cliente (ej: "ENA Norte S.A., ENA Sur S.A., ENA Este S.A."):
+- client.name = nombre del grupo o de la primera empresa principal
+- coContractors = array con TODAS las empresas (incluyendo la principal si tiene % propio)
+- sharePercent = porcentaje de la factura que corresponde a cada una (si está especificado)
+Si hay una sola empresa cliente → coContractors = null.
+
+────────────────────────────────────────────────────────────
+REGLAS GENERALES
+────────────────────────────────────────────────────────────
+
+- Si un campo no está en el documento → null. NUNCA inventar valores.
+- Fechas en ISO 8601 (YYYY-MM-DD). Si solo se menciona el mes → usar día 1.
+- signatureDate: buscarla al final del documento, en la sección de firmas ("Ciudad de X, a los N días del mes de M de YYYY").
+- lateFeePct: porcentaje numérico. "2% mensual" → 2.
+- paymentTermsDays: "30 días desde presentación de factura" → 30. "primeros 5 días del mes" → null (no es un plazo desde emisión).
+- currency: "USD"/"US$"/"dólares estadounidenses" → "USD". "balboas"/"B/." → "PAB". "lempiras"/"L." → "HNL". "pesos argentinos" → "ARS". "pesos mexicanos" → "MXN".
 - confidence: HIGH si todo claro, MEDIUM si algunos campos dudosos, LOW si hay ambigüedades importantes.`
 
 const SUPPORTED_IMAGE_TYPES = [
@@ -113,11 +203,23 @@ const MODEL = "claude-sonnet-4-6"
 
 function fallbackResult(notes?: string): OcrContractResult {
   return {
-    client: { name: "Desconocido", email: null, phone: null, taxId: null, address: null },
+    client: {
+      name: "Desconocido",
+      email: null,
+      phone: null,
+      taxId: null,
+      taxIdType: null,
+      address: null,
+      signatoryName: null,
+      signatoryId: null,
+      billingContact: null,
+    },
     contract: {
       name: "Contrato importado",
+      contractNumber: null,
       startDate: null,
       endDate: null,
+      signatureDate: null,
       billingCycle: null,
       currency: null,
       lateFeePct: null,
@@ -127,6 +229,7 @@ function fallbackResult(notes?: string): OcrContractResult {
     },
     items: [],
     overagePricingTable: null,
+    coContractors: null,
     confidence: "LOW",
   }
 }

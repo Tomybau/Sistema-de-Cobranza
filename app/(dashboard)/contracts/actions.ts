@@ -109,6 +109,7 @@ export async function createContractFullAction(
           data: {
             legalName: nc.legalName.trim(),
             taxId: nc.taxId?.trim() || null,
+            taxIdType: nc.taxIdType?.trim() || null,
             email: nc.email?.trim() || null,
             phone: nc.phone?.trim() || null,
             address: nc.address?.trim() || null,
@@ -127,6 +128,7 @@ export async function createContractFullAction(
               email: nc2.email.trim(),
               phone: nc2.phone?.trim() || null,
               role: nc2.role?.trim() || null,
+              clientType: nc2.clientType ?? "GENERAL",
               isPrimary: true,
             },
           })
@@ -205,6 +207,8 @@ export async function createContractFullAction(
             pricingTableId,
             totalAmount: item.totalAmount?.trim() ? toDecimal(item.totalAmount) : null,
             installments: item.installments ?? null,
+            milestoneLabels: item.milestoneLabels?.length ? item.milestoneLabels : undefined,
+            breakdownNote: item.breakdownNote?.trim() || null,
             quotaLimit: item.quotaLimit?.trim() ? toDecimal(item.quotaLimit) : null,
             quotaUnit: item.quotaUnit?.trim() || null,
             durationMonths: item.durationMonths ?? null,
