@@ -38,8 +38,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # Prisma schema + migrations para correr en startup
 COPY --from=builder --chown=nextjs:nodejs /app/db ./db
 
-# Prisma CLI + engines para migrate deploy
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+# Prisma CLI + wasm + packages para migrate deploy
+# Prisma 6 requiere prisma_schema_build_bg.wasm junto al binario en .bin/
+COPY --from=builder /app/node_modules/.bin/prisma* ./node_modules/.bin/
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
