@@ -1,0 +1,3 @@
+# Forzar LF en scripts de shell (evita CRLF en Windows que rompe Linux containers)
+*.sh text eol=lf
+entrypoint.sh text eol=lf
