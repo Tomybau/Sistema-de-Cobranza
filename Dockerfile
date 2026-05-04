@@ -38,11 +38,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # Prisma schema + migrations para correr en startup
 COPY --from=builder --chown=nextjs:nodejs /app/db ./db
 
-# Prisma CLI + wasm + packages para migrate deploy
-# Prisma 6 requiere prisma_schema_build_bg.wasm junto al binario en .bin/
-COPY --from=builder /app/node_modules/.bin/prisma* ./node_modules/.bin/
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Instalar Prisma CLI fresco en runner: garantiza que el .wasm y los
+# symlinks queden bien configurados (Docker COPY rompe los symlinks de .bin)
+RUN npm install --no-save --no-audit prisma@6.19.3 && \
+    chown -R nextjs:nodejs /app/node_modules
 
 COPY --chown=nextjs:nodejs entrypoint.sh ./
 RUN sed -i 's/\r//' entrypoint.sh && chmod +x entrypoint.sh
