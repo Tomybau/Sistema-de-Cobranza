@@ -48,14 +48,14 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_VARIANTS: Record<
   string,
-  "default" | "secondary" | "outline" | "destructive"
+  "default" | "secondary" | "outline" | "destructive" | "ok" | "warn" | "bad" | "pending"
 > = {
-  PENDING: "secondary",
-  SENT: "default",
-  PAID: "default",
-  OVERDUE: "destructive",
+  PENDING: "pending",
+  SENT: "secondary",
+  PAID: "ok",
+  OVERDUE: "bad",
   CANCELLED: "outline",
-  PARTIAL: "secondary",
+  PARTIAL: "warn",
 }
 
 // Custom filter fn so status column supports exact-match filtering

@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, Clock, AlertTriangle, Percent } from "lucide-react"
+import { TrendingUp, TrendingDown, AlertTriangle, Percent, DollarSign } from "lucide-react"
 import type { KPIData } from "../_data/get-kpis"
 import { cn } from "@/lib/utils"
 
@@ -19,17 +19,44 @@ function formatCurrency(amount: number) {
 }
 
 function formatDelta(value: number | null) {
-  if (value === null) return "—"
-  const prefix = value > 0 ? "↑" : value < 0 ? "↓" : ""
-  return `${prefix} ${Math.abs(value).toFixed(1)}%`
+  if (value === null) return null
+  const prefix = value > 0 ? "+" : ""
+  return `${prefix}${value.toFixed(1)}%`
+}
+
+type Accent = "brand" | "ok" | "bad" | "neutral"
+
+const accentBorder: Record<Accent, string> = {
+  brand: "border-l-primary",
+  ok:    "border-l-ok",
+  bad:   "border-l-bad",
+  neutral: "border-l-border",
+}
+
+const accentIcon: Record<Accent, string> = {
+  brand:   "text-primary",
+  ok:      "text-ok",
+  bad:     "text-bad",
+  neutral: "text-muted-foreground",
+}
+
+interface CardConfig {
+  title: string
+  value: string
+  icon: React.ElementType
+  accent: Accent
+  delta?: number | null
+  deltaText?: string
+  isPositiveGood?: boolean
 }
 
 export function KpiCards({ data }: KpiCardsProps) {
-  const cards = [
+  const cards: CardConfig[] = [
     {
       title: "Facturado este mes",
       value: formatCurrency(data.billedThisMonth),
       icon: DollarSign,
+      accent: "brand",
       delta: data.deltas.billed,
       deltaText: "vs mes anterior",
     },
@@ -37,6 +64,7 @@ export function KpiCards({ data }: KpiCardsProps) {
       title: "Cobrado este mes",
       value: formatCurrency(data.collectedThisMonth),
       icon: DollarSign,
+      accent: "ok",
       delta: data.deltas.collected,
       deltaText: "vs mes anterior",
       isPositiveGood: true,
@@ -45,58 +73,71 @@ export function KpiCards({ data }: KpiCardsProps) {
       title: "Tickets vencidos",
       value: data.overdueCount.toString(),
       icon: AlertTriangle,
-      highlight: data.overdueCount > 0,
+      accent: data.overdueCount > 0 ? "bad" : "neutral",
     },
     {
       title: "Tasa de cobro",
       value: `${data.collectionRate.toFixed(1)}%`,
       icon: Percent,
+      accent: "neutral",
     },
   ]
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {cards.map((card) => (
-        <Card key={card.title}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {card.title}
-            </CardTitle>
-            <card.icon
-              className={cn(
-                "h-4 w-4",
-                card.highlight ? "text-destructive" : "text-muted-foreground"
-              )}
-            />
-          </CardHeader>
-          <CardContent>
-            <div
-              className={cn(
-                "text-2xl font-bold",
-                card.highlight && "text-destructive"
-              )}
-            >
-              {card.value}
-            </div>
-            {card.delta !== undefined && (
-              <p
-                className={cn(
-                  "text-xs mt-1",
-                  card.delta === null
-                    ? "text-muted-foreground"
-                    : (card.delta > 0 && card.isPositiveGood) || (card.delta < 0 && !card.isPositiveGood)
-                    ? "text-emerald-500"
-                    : card.delta === 0
-                    ? "text-muted-foreground"
-                    : "text-destructive"
-                )}
-              >
-                {formatDelta(card.delta)} {card.deltaText && <span className="text-muted-foreground">{card.deltaText}</span>}
-              </p>
+      {cards.map((card) => {
+        const delta = card.delta !== undefined ? formatDelta(card.delta ?? null) : null
+        const deltaPositive =
+          card.delta != null &&
+          ((card.delta > 0 && card.isPositiveGood) ||
+            (card.delta < 0 && !card.isPositiveGood))
+        const deltaIsNeutral = card.delta === 0 || card.delta == null
+
+        return (
+          <Card
+            key={card.title}
+            className={cn(
+              "border-l-4",
+              accentBorder[card.accent]
             )}
-          </CardContent>
-        </Card>
-      ))}
+          >
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {card.title}
+              </CardTitle>
+              <card.icon className={cn("h-4 w-4 shrink-0", accentIcon[card.accent])} />
+            </CardHeader>
+            <CardContent>
+              <div className={cn(
+                "text-2xl font-semibold tracking-tight num",
+                card.accent === "bad" && data.overdueCount > 0 && "text-bad"
+              )}>
+                {card.value}
+              </div>
+              {delta !== null && (
+                <p className={cn(
+                  "text-xs mt-1 flex items-center gap-1",
+                  deltaIsNeutral
+                    ? "text-muted-foreground"
+                    : deltaPositive
+                    ? "text-ok"
+                    : "text-bad"
+                )}>
+                  {!deltaIsNeutral && (
+                    deltaPositive
+                      ? <TrendingUp className="h-3 w-3" />
+                      : <TrendingDown className="h-3 w-3" />
+                  )}
+                  {delta}{" "}
+                  {card.deltaText && (
+                    <span className="text-muted-foreground">{card.deltaText}</span>
+                  )}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )
+      })}
     </div>
   )
 }

@@ -76,18 +76,18 @@ export function RevenueChart({ data }: RevenueChartProps) {
                 wrapperStyle={{ fontSize: "12px", paddingTop: "20px" }}
                 iconType="circle"
               />
-              <Bar 
-                dataKey="billed" 
-                name="Facturado" 
-                fill="var(--color-slate-500, #64748b)" 
-                radius={[4, 4, 0, 0]} 
+              <Bar
+                dataKey="billed"
+                name="Facturado"
+                fill="var(--chart-1)"
+                radius={[4, 4, 0, 0]}
                 maxBarSize={40}
               />
-              <Bar 
-                dataKey="collected" 
-                name="Cobrado" 
-                fill="var(--color-emerald-500, #10b981)" 
-                radius={[4, 4, 0, 0]} 
+              <Bar
+                dataKey="collected"
+                name="Cobrado"
+                fill="var(--chart-2)"
+                radius={[4, 4, 0, 0]}
                 maxBarSize={40}
               />
             </BarChart>

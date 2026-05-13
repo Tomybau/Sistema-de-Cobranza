@@ -63,11 +63,11 @@ export function OverdueTable({ data }: OverdueTableProps) {
                   </TableCell>
                   <TableCell>
                     <div className="font-medium">{format(new Date(ticket.dueDate), "dd MMM yyyy", { locale: es })}</div>
-                    <Badge variant="destructive" className="mt-1 text-[10px] px-1 py-0 h-4">
+                    <Badge variant="bad" className="mt-1 text-[10px] px-1 py-0 h-4">
                       hace {ticket.daysOverdue} {ticket.daysOverdue === 1 ? "día" : "días"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right font-medium text-destructive">
+                  <TableCell className="text-right font-medium num text-bad">
                     {new Intl.NumberFormat("es-AR", {
                       style: "currency",
                       currency: "ARS",

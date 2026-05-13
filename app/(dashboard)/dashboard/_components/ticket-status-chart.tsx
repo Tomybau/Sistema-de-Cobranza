@@ -13,12 +13,12 @@ interface TicketStatusChartProps {
 }
 
 const STATUS_COLORS: Record<BillingTicketStatus, string> = {
-  PENDING: "var(--color-amber-500, #f59e0b)",
-  SENT: "var(--color-blue-500, #3b82f6)",
-  PAID: "var(--color-emerald-500, #10b981)",
-  PARTIAL: "var(--color-teal-500, #14b8a6)",
-  OVERDUE: "var(--color-red-500, #ef4444)",
-  CANCELLED: "var(--color-slate-400, #94a3b8)",
+  PENDING: "var(--chart-3)",
+  SENT: "var(--chart-1)",
+  PAID: "var(--chart-2)",
+  PARTIAL: "var(--chart-5)",
+  OVERDUE: "var(--chart-4)",
+  CANCELLED: "var(--muted-foreground)",
 }
 
 const STATUS_LABELS: Record<BillingTicketStatus, string> = {

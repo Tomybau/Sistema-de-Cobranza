@@ -62,11 +62,16 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             className={cn(
               "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
               isActive(href)
-                ? "bg-accent text-accent-foreground font-medium"
+                ? "bg-primary/10 text-primary font-medium"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )}
           >
-            <Icon className="h-4 w-4 shrink-0" />
+            <Icon
+              className={cn(
+                "h-4 w-4 shrink-0",
+                isActive(href) ? "text-primary" : "text-muted-foreground"
+              )}
+            />
             {label}
           </Link>
         ))}
@@ -81,11 +86,16 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             className={cn(
               "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
               isActive(href)
-                ? "bg-accent text-accent-foreground font-medium"
+                ? "bg-primary/10 text-primary font-medium"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )}
           >
-            <Icon className="h-4 w-4 shrink-0" />
+            <Icon
+              className={cn(
+                "h-4 w-4 shrink-0",
+                isActive(href) ? "text-primary" : "text-muted-foreground"
+              )}
+            />
             {label}
           </Link>
         ))}
