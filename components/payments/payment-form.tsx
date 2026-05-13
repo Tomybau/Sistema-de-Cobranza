@@ -38,9 +38,10 @@ type TicketItem = Awaited<ReturnType<typeof getClientTicketsAction>>["tickets"][
 
 interface PaymentFormProps {
   clients: ClientOption[]
+  onSuccess?: () => void
 }
 
-export function PaymentForm({ clients }: PaymentFormProps) {
+export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isLoadingTickets, setIsLoadingTickets] = useState(false)
@@ -162,7 +163,11 @@ export function PaymentForm({ clients }: PaymentFormProps) {
         toast.error(res.error)
       } else {
         toast.success("Pago registrado correctamente")
-        router.push("/payments")
+        if (onSuccess) {
+          onSuccess()
+        } else {
+          router.push("/payments")
+        }
       }
     })
   }

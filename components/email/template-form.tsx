@@ -260,14 +260,22 @@ export function TemplateForm({ companies, initialData }: TemplateFormProps) {
               )}
             />
             
-            <div className="rounded-md border h-[300px] flex flex-col overflow-hidden">
-              <div className="bg-muted px-4 py-2 border-b text-sm font-medium">
-                Vista Previa HTML
+            <div className="rounded-lg border flex flex-col overflow-hidden" style={{ height: 360 }}>
+              {/* Email chrome */}
+              <div className="bg-muted/60 px-4 py-2 border-b flex items-center gap-2 shrink-0">
+                <div className="flex gap-1">
+                  <span className="h-2.5 w-2.5 rounded-full bg-border" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-border" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-border" />
+                </div>
+                <span className="text-xs text-muted-foreground ml-1 flex-1 truncate">
+                  {form.watch("subject") || "Asunto del email"}
+                </span>
+                <span className="text-[10px] text-muted-foreground/60 shrink-0">Preview en vivo</span>
               </div>
-              <div className="flex-1 bg-white p-4 overflow-auto">
-                 {/* Security note: using iframe srcdoc to avoid polluting the app styles, dangerouslySetInnerHTML could break Next's layout */}
+              <div className="flex-1 bg-white overflow-auto">
                 <iframe
-                  srcDoc={bodyHtml}
+                  srcDoc={bodyHtml || "<p style='font-family:system-ui;color:#888;padding:16px;font-size:13px'>El HTML del cuerpo aparecerá aquí...</p>"}
                   className="w-full h-full border-none"
                   title="Preview"
                   sandbox="allow-same-origin"
