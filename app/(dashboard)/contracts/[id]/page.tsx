@@ -28,13 +28,13 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_VARIANTS: Record<
   string,
-  "default" | "secondary" | "outline" | "destructive"
+  "default" | "secondary" | "outline" | "destructive" | "ok" | "warn" | "bad" | "pending"
 > = {
-  DRAFT: "secondary",
-  ACTIVE: "default",
-  SUSPENDED: "outline",
+  DRAFT: "pending",
+  ACTIVE: "ok",
+  SUSPENDED: "warn",
   ENDED: "outline",
-  CANCELLED: "destructive",
+  CANCELLED: "bad",
 }
 
 const TICKET_STATUS_LABELS: Record<string, string> = {
@@ -48,14 +48,14 @@ const TICKET_STATUS_LABELS: Record<string, string> = {
 
 const TICKET_STATUS_VARIANTS: Record<
   string,
-  "default" | "secondary" | "outline" | "destructive"
+  "default" | "secondary" | "outline" | "destructive" | "ok" | "warn" | "bad" | "pending"
 > = {
-  PENDING: "secondary",
-  SENT: "default",
-  PAID: "default",
-  OVERDUE: "destructive",
+  PENDING: "pending",
+  SENT: "secondary",
+  PAID: "ok",
+  OVERDUE: "bad",
   CANCELLED: "outline",
-  PARTIAL: "secondary",
+  PARTIAL: "warn",
 }
 
 interface Props {
@@ -77,6 +77,19 @@ export default async function ContractDetailPage({ params }: Props) {
   }))
 
   const { year: defaultYear, month: defaultMonth } = currentBillingPeriod()
+
+  // Stats derivadas de los tickets
+  const totalBilled = tickets.reduce(
+    (sum, t) => sum + (Number(t.amount) || 0),
+    0
+  )
+  const totalPaid = tickets
+    .filter((t) => t.status === "PAID")
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+  const overdue = tickets.filter((t) => t.status === "OVERDUE").length
+  const pending = tickets.filter(
+    (t) => t.status === "PENDING" || t.status === "SENT"
+  ).length
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
@@ -105,6 +118,28 @@ export default async function ContractDetailPage({ params }: Props) {
           contractStatus={contract.status}
         />
       </div>
+
+      {/* Stats bar */}
+      {tickets.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-md border bg-card p-3">
+            <p className="text-xs text-muted-foreground mb-0.5">Total facturado</p>
+            <p className="text-lg font-semibold num">{formatMoney(totalBilled, contract.currency)}</p>
+          </div>
+          <div className="rounded-md border bg-card p-3">
+            <p className="text-xs text-muted-foreground mb-0.5">Cobrado</p>
+            <p className="text-lg font-semibold num text-ok">{formatMoney(totalPaid, contract.currency)}</p>
+          </div>
+          <div className="rounded-md border bg-card p-3">
+            <p className="text-xs text-muted-foreground mb-0.5">Pendientes</p>
+            <p className="text-lg font-semibold num">{pending}</p>
+          </div>
+          <div className="rounded-md border bg-card p-3">
+            <p className="text-xs text-muted-foreground mb-0.5">Vencidos</p>
+            <p className={`text-lg font-semibold num ${overdue > 0 ? "text-bad" : ""}`}>{overdue}</p>
+          </div>
+        </div>
+      )}
 
       {/* Overview */}
       <section className="rounded-md border p-4 space-y-3">

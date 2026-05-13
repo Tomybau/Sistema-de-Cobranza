@@ -38,13 +38,13 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_VARIANTS: Record<
   string,
-  "default" | "secondary" | "outline" | "destructive"
+  "default" | "secondary" | "outline" | "destructive" | "ok" | "warn" | "bad" | "pending"
 > = {
-  DRAFT: "secondary",
-  ACTIVE: "default",
-  SUSPENDED: "outline",
+  DRAFT: "pending",
+  ACTIVE: "ok",
+  SUSPENDED: "warn",
   ENDED: "outline",
-  CANCELLED: "destructive",
+  CANCELLED: "bad",
 }
 
 interface ContractsTableProps {

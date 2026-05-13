@@ -72,7 +72,7 @@ export function CompaniesTable({ data }: CompaniesTableProps) {
         accessorKey: "taxId",
         header: "CUIT",
         cell: ({ getValue }) => (
-          <span className="font-mono text-sm">{String(getValue() ?? "—")}</span>
+          <span className="mono text-sm text-muted-foreground">{String(getValue() ?? "—")}</span>
         ),
       },
       {
@@ -97,7 +97,7 @@ export function CompaniesTable({ data }: CompaniesTableProps) {
         cell: ({ getValue }) => {
           const count = getValue() as number
           return (
-            <Badge variant={count > 0 ? "default" : "outline"}>{count}</Badge>
+            <Badge variant={count > 0 ? "ok" : "outline"}>{count}</Badge>
           )
         },
       },

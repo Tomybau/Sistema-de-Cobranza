@@ -1,20 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { format } from "date-fns"
+import { format, formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
 import { ChevronDown, ChevronRight, ClipboardList } from "lucide-react"
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -22,11 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import { AUDIT_ENTITY_TYPES, type AuditLogRow } from "@/domain/audit/types"
 import Link from "next/link"
 
-// Map entity type → route prefix
 const ENTITY_ROUTES: Record<string, string | null> = {
   Company: "/companies",
   Client: null,
@@ -39,30 +30,55 @@ const ENTITY_ROUTES: Record<string, string | null> = {
   PricingTable: "/pricing-tables",
 }
 
+// Dot color per action verb
+const ACTION_COLOR: Record<string, string> = {
+  CREATE: "bg-ok",
+  UPDATE: "bg-primary",
+  DELETE: "bg-bad",
+  SEND: "bg-warn",
+  CANCEL: "bg-bad",
+  MARK: "bg-ok",
+  REGISTER: "bg-ok",
+}
+
+function actionDotColor(action: string): string {
+  const verb = action.split("_")[0]
+  return ACTION_COLOR[verb] ?? "bg-muted-foreground"
+}
+
+function actionBadgeVariant(
+  action: string
+): "default" | "secondary" | "outline" | "ok" | "warn" | "bad" | "pending" {
+  const verb = action.split("_")[0]
+  if (verb === "CREATE" || verb === "MARK" || verb === "REGISTER") return "ok"
+  if (verb === "DELETE" || verb === "CANCEL") return "bad"
+  if (verb === "SEND") return "warn"
+  if (verb === "UPDATE") return "secondary"
+  return "outline"
+}
+
 function EntityLink({ entityType, entityId }: { entityType: string; entityId: string }) {
   const base = ENTITY_ROUTES[entityType]
   if (!base) {
     return (
-      <span className="font-mono text-xs text-muted-foreground">
-        {entityId.slice(0, 12)}…
+      <span className="mono text-xs text-muted-foreground">
+        {entityId.slice(0, 10)}…
       </span>
     )
   }
   return (
     <Link
       href={`${base}/${entityId}`}
-      className="font-mono text-xs hover:underline text-primary"
+      className="mono text-xs text-primary hover:underline"
     >
-      {entityId.slice(0, 12)}…
+      {entityId.slice(0, 10)}…
     </Link>
   )
 }
 
 function DetailToggle({ data }: { data: unknown }) {
   const [open, setOpen] = useState(false)
-  if (data === null || data === undefined) {
-    return <span className="text-muted-foreground text-xs">—</span>
-  }
+  if (data === null || data === undefined) return null
   return (
     <div>
       <button
@@ -73,7 +89,7 @@ function DetailToggle({ data }: { data: unknown }) {
         Ver detalle
       </button>
       {open && (
-        <pre className="mt-1 max-h-40 overflow-auto rounded bg-muted p-2 text-xs font-mono whitespace-pre-wrap">
+        <pre className="mt-1 max-h-40 overflow-auto rounded-md bg-muted p-2 text-xs mono whitespace-pre-wrap">
           {JSON.stringify(data, null, 2)}
         </pre>
       )}
@@ -88,7 +104,6 @@ interface AuditLogTableProps {
   pageSize: number
   totalPages: number
   users: { id: string; name: string; email: string }[]
-  // URL-driven filter state (passed from server component)
   currentEntityType: string
   currentUserId: string
   currentDateFrom: string
@@ -118,14 +133,12 @@ export function AuditLogTable({
   const [dateFrom, setDateFrom] = useState(currentDateFrom)
   const [dateTo, setDateTo] = useState(currentDateTo)
 
-  function applyDateFilter() {
-    onFilter({ dateFrom, dateTo, page: 1 })
-  }
+  const hasFilters = !!(currentEntityType || currentUserId || currentDateFrom || currentDateTo)
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3 p-4 rounded-lg border bg-card">
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground">Entidad</p>
           <Select
@@ -134,15 +147,13 @@ export function AuditLogTable({
               onFilter({ entityType: !v || v === "_all" ? undefined : v, page: 1 })
             }
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Todas las entidades" />
+            <SelectTrigger className="w-[160px] h-8 text-sm">
+              <SelectValue placeholder="Todas" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="_all">Todas</SelectItem>
               {AUDIT_ENTITY_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
+                <SelectItem key={t} value={t}>{t}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -156,15 +167,13 @@ export function AuditLogTable({
               onFilter({ userId: !v || v === "_all" ? undefined : v, page: 1 })
             }
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Todos los usuarios" />
+            <SelectTrigger className="w-[160px] h-8 text-sm">
+              <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="_all">Todos</SelectItem>
               {users.map((u) => (
-                <SelectItem key={u.id} value={u.id}>
-                  {u.name}
-                </SelectItem>
+                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -176,7 +185,7 @@ export function AuditLogTable({
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="w-[160px]"
+            className="w-[148px] h-8 text-sm"
           />
         </div>
 
@@ -186,95 +195,131 @@ export function AuditLogTable({
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="w-[160px]"
+            className="w-[148px] h-8 text-sm"
           />
         </div>
 
-        <Button variant="secondary" size="sm" onClick={applyDateFilter}>
-          Aplicar fechas
+        <Button
+          variant="secondary"
+          size="sm"
+          className="h-8"
+          onClick={() => onFilter({ dateFrom, dateTo, page: 1 })}
+        >
+          Aplicar
         </Button>
 
-        {(currentEntityType || currentUserId || currentDateFrom || currentDateTo) && (
+        {hasFilters && (
           <Button
             variant="ghost"
             size="sm"
+            className="h-8"
             onClick={() => {
               setDateFrom("")
               setDateTo("")
-              onFilter({ entityType: undefined, userId: undefined, dateFrom: undefined, dateTo: undefined, page: 1 })
+              onFilter({
+                entityType: undefined,
+                userId: undefined,
+                dateFrom: undefined,
+                dateTo: undefined,
+                page: 1,
+              })
             }}
           >
-            Limpiar filtros
+            Limpiar
           </Button>
         )}
+
+        <span className="ml-auto text-xs text-muted-foreground">
+          {total} registro{total !== 1 ? "s" : ""}
+        </span>
       </div>
 
-      {/* Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Fecha/Hora</TableHead>
-              <TableHead>Acción</TableHead>
-              <TableHead>Entidad</TableHead>
-              <TableHead>ID</TableHead>
-              <TableHead>Usuario</TableHead>
-              <TableHead>Detalle</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length > 0 ? (
-              rows.map((row) => (
-                <TableRow key={row.id} className="hover:bg-muted/50 align-top">
-                  <TableCell className="text-xs tabular-nums whitespace-nowrap">
-                    {format(new Date(row.createdAt), "dd MMM yyyy HH:mm:ss", { locale: es })}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="font-mono text-xs">
+      {/* Timeline */}
+      {rows.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
+          <ClipboardList className="h-10 w-10 opacity-25" />
+          <p className="text-sm font-medium">Sin registros de auditoría</p>
+          <p className="text-xs">
+            {hasFilters
+              ? "Probá con otros filtros."
+              : "Los cambios en entidades críticas aparecerán aquí."}
+          </p>
+        </div>
+      ) : (
+        <div className="relative">
+          {/* Línea vertical continua */}
+          <div className="absolute left-[19px] top-2 bottom-2 w-px bg-border" />
+
+          <ul className="space-y-0">
+            {rows.map((row, idx) => (
+              <li key={row.id} className="relative flex gap-4 pb-0">
+                {/* Dot */}
+                <div className="relative z-10 mt-3 flex h-10 w-10 shrink-0 items-center justify-center">
+                  <span
+                    className={`h-2.5 w-2.5 rounded-full ring-2 ring-background ${actionDotColor(row.action)}`}
+                  />
+                </div>
+
+                {/* Content */}
+                <div
+                  className={`flex-1 py-3 ${idx < rows.length - 1 ? "border-b border-border/50" : ""}`}
+                >
+                  <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
+                    <Badge
+                      variant={actionBadgeVariant(row.action)}
+                      className="mono text-[10px] shrink-0"
+                    >
                       {row.action}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{row.entityType}</span>
-                  </TableCell>
-                  <TableCell>
-                    <EntityLink entityType={row.entityType} entityId={row.entityId} />
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {row.user ? (
-                      <span title={row.user.email}>{row.user.name}</span>
-                    ) : (
-                      <span className="text-muted-foreground">Sistema</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="max-w-xs">
-                    <DetailToggle data={row.afterData ?? row.beforeData} />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center">
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <ClipboardList className="h-8 w-8 opacity-30" />
-                    <p className="text-sm font-medium">Sin registros de auditoría</p>
-                    <p className="text-xs">
-                      Los cambios en entidades críticas aparecerán aquí.
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>
-          {total} registro{total !== 1 ? "s" : ""} en total
-        </span>
-        {totalPages > 1 && (
+                    <span className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">{row.entityType}</span>
+                      {" · "}
+                      <EntityLink entityType={row.entityType} entityId={row.entityId} />
+                    </span>
+
+                    <span className="ml-auto text-xs text-muted-foreground shrink-0">
+                      <span
+                        title={format(new Date(row.createdAt), "dd MMM yyyy HH:mm:ss", {
+                          locale: es,
+                        })}
+                      >
+                        {formatDistanceToNow(new Date(row.createdAt), {
+                          addSuffix: true,
+                          locale: es,
+                        })}
+                      </span>
+                    </span>
+                  </div>
+
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {row.user ? row.user.name : "Sistema"}
+                    </span>
+                    <span className="text-xs text-muted-foreground/50">·</span>
+                    <span className="text-xs text-muted-foreground mono">
+                      {format(new Date(row.createdAt), "dd MMM yyyy HH:mm", { locale: es })}
+                    </span>
+                  </div>
+
+                  {row.afterData != null || row.beforeData != null ? (
+                    <div className="mt-1.5">
+                      <DetailToggle data={row.afterData ?? row.beforeData} />
+                    </div>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground">
+          <span>
+            Mostrando {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} de {total}
+          </span>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -284,9 +329,7 @@ export function AuditLogTable({
             >
               Anterior
             </Button>
-            <span>
-              Pág. {page} de {totalPages}
-            </span>
+            <span>Pág. {page} de {totalPages}</span>
             <Button
               variant="outline"
               size="sm"
@@ -296,8 +339,8 @@ export function AuditLogTable({
               Siguiente
             </Button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
