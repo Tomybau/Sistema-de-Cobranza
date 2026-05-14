@@ -40,8 +40,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/db ./db
 
 # Instalar Prisma CLI fresco en runner: garantiza que el .wasm y los
 # symlinks queden bien configurados (Docker COPY rompe los symlinks de .bin)
-RUN npm install --no-save --no-audit prisma@6.19.3 && \
-    chown -R nextjs:nodejs /app/node_modules
+# No hace falta chown -R: npm instala con 644/755 legibles por cualquier usuario
+RUN npm install --no-save --no-audit prisma@6.19.3
 
 COPY --chown=nextjs:nodejs entrypoint.sh ./
 RUN sed -i 's/\r//' entrypoint.sh && chmod +x entrypoint.sh
