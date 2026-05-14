@@ -5,6 +5,7 @@ import { MobileSidebar } from "@/components/layout/mobile-sidebar"
 import { UserMenu } from "@/components/layout/user-menu"
 import { CommandPalette } from "@/components/layout/command-palette"
 import { KeyboardShortcuts } from "@/components/layout/keyboard-shortcuts"
+import { SearchTrigger } from "@/components/layout/search-trigger"
 import { Toaster } from "@/components/ui/sonner"
 
 export default async function DashboardLayout({
@@ -29,21 +30,7 @@ export default async function DashboardLayout({
           <MobileSidebar />
           <div className="flex-1" />
 
-          {/* Ctrl+K trigger */}
-          <button
-            onClick={() => {
-              const e = new KeyboardEvent("keydown", {
-                key: "k",
-                ctrlKey: true,
-                bubbles: true,
-              })
-              window.dispatchEvent(e)
-            }}
-            className="hidden sm:flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
-          >
-            <span>Buscar...</span>
-            <kbd className="font-mono text-[10px]">Ctrl+K</kbd>
-          </button>
+          <SearchTrigger />
 
           <UserMenu
             name={session.user.name ?? "Admin"}
