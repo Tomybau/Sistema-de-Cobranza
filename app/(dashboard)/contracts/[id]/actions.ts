@@ -131,6 +131,8 @@ export type PreviewResult =
         pricingTableId: string | null
         issueDate: string
         dueDate: string
+        description: string | null
+        breakdownNote: string | null
       }>
       skipped: number
     }

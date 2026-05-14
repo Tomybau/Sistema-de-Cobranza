@@ -26,14 +26,14 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_VARIANTS: Record<
   string,
-  "default" | "secondary" | "outline" | "destructive"
+  "default" | "secondary" | "outline" | "destructive" | "ok" | "warn" | "bad" | "pending"
 > = {
-  PENDING: "secondary",
-  SENT: "default",
-  PAID: "default",
-  OVERDUE: "destructive",
+  PENDING: "pending",
+  SENT: "secondary",
+  PAID: "ok",
+  OVERDUE: "bad",
   CANCELLED: "outline",
-  PARTIAL: "secondary",
+  PARTIAL: "warn",
 }
 
 interface Props {
@@ -153,6 +153,20 @@ export default async function TicketDetailPage({ params }: Props) {
               <p className="text-muted-foreground">Cantidad variable</p>
               <p className="font-medium tabular-nums">
                 {ticket.variableQuantity}
+              </p>
+            </div>
+          )}
+          {ticket.description && (
+            <div>
+              <p className="text-muted-foreground">Hito / Descripción</p>
+              <p className="font-medium">{ticket.description}</p>
+            </div>
+          )}
+          {ticket.breakdownNote && (
+            <div className="sm:col-span-2 md:col-span-3">
+              <p className="text-muted-foreground">Desglose del monto</p>
+              <p className="font-mono text-sm bg-muted/50 rounded px-2 py-1.5 mt-0.5">
+                {ticket.breakdownNote}
               </p>
             </div>
           )}

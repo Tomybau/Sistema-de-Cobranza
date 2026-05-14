@@ -181,6 +181,8 @@ export async function getBillingTicketById(id: string) {
     amount: row.amount.toString(),
     currency: row.currency,
     variableQuantity: row.variableQuantity?.toString() ?? null,
+    description: row.description,
+    breakdownNote: row.breakdownNote,
     status: row.status as BillingTicketStatus,
     notes: row.notes,
     paidAt: row.paidAt,

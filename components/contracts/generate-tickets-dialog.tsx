@@ -153,8 +153,8 @@ export function GenerateTicketsDialog({
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg flex flex-col max-h-[85vh]">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Generar tickets de cobro</DialogTitle>
             <DialogDescription>
               Seleccioná el período y confirmá los montos antes de generar.
@@ -162,7 +162,7 @@ export function GenerateTicketsDialog({
           </DialogHeader>
 
           {/* Period selector */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <Select
               value={String(month)}
               onValueChange={(v) => v != null && setMonth(Number(v))}
@@ -197,7 +197,7 @@ export function GenerateTicketsDialog({
           </div>
 
           {/* Preview panel */}
-          <div className="min-h-[6rem] rounded-md border p-3 space-y-2">
+          <div className="min-h-[6rem] max-h-[50vh] overflow-y-auto rounded-md border p-3 space-y-3 flex-1">
             {isLoadingPreview && (
               <p className="text-sm text-muted-foreground animate-pulse">Calculando...</p>
             )}
@@ -228,10 +228,20 @@ export function GenerateTicketsDialog({
                         <span className="text-muted-foreground text-xs">cuota {draft.installmentNum}</span>
                       )}
                     </div>
+                    {draft.description && (
+                      <div className="text-xs text-foreground/80 mt-0.5 font-medium">
+                        {draft.description}
+                      </div>
+                    )}
                     <div className="text-xs text-muted-foreground mt-0.5">
                       Vcto:{" "}
                       {format(new Date(draft.dueDate), "dd MMM yyyy", { locale: es })}
                     </div>
+                    {draft.breakdownNote && (
+                      <div className="text-xs text-muted-foreground bg-muted/60 rounded px-2 py-1 mt-1 font-mono leading-snug">
+                        {draft.breakdownNote}
+                      </div>
+                    )}
                   </div>
 
                   {draft.status === "READY" && draft.amount !== null ? (
@@ -265,7 +275,7 @@ export function GenerateTicketsDialog({
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isGenerating}>
               Cancelar
             </Button>

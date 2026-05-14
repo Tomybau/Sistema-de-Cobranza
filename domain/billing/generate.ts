@@ -226,6 +226,8 @@ export async function previewBillingTickets(
     pricingTableId: string | null
     issueDate: string
     dueDate: string
+    description: string | null
+    breakdownNote: string | null
   }>
   skipped: number
 }> {
@@ -317,6 +319,8 @@ export async function previewBillingTickets(
       pricingTableId: d.pricingTableId,
       issueDate: d.issueDate.toISOString(),
       dueDate: d.dueDate.toISOString(),
+      description: d.description,
+      breakdownNote: d.breakdownNote,
     })),
     skipped,
   }
