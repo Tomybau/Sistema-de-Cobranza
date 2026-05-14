@@ -31,6 +31,31 @@ import {
   type PreviewResult,
 } from "@/app/(dashboard)/contracts/[id]/actions"
 import { formatMoney } from "@/lib/money"
+import { cn } from "@/lib/utils"
+
+// ─── Cálculo de precio client-side (espeja calculateVariableAmount del server) ─
+type PricingTier = { fromQuantity: string; toQuantity: string | null; unitPrice: string; flatFee: string | null }
+
+function calcPricePreview(tiers: PricingTier[], quantityStr: string): string | null {
+  const qty = parseFloat(quantityStr)
+  if (isNaN(qty) || qty < 0) return null
+  if (qty === 0) return "0.00"
+  const sorted = [...tiers].sort((a, b) => parseFloat(a.fromQuantity) - parseFloat(b.fromQuantity))
+  if (sorted.length === 0) return null
+  if (qty < parseFloat(sorted[0].fromQuantity)) return null
+  let matching = sorted[sorted.length - 1]
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const tier = sorted[i]
+    const from = parseFloat(tier.fromQuantity)
+    if (qty >= from) {
+      if (tier.toQuantity === null || qty <= parseFloat(tier.toQuantity)) {
+        matching = tier; break
+      }
+    }
+  }
+  const price = parseFloat(matching.unitPrice) * qty + (matching.flatFee ? parseFloat(matching.flatFee) : 0)
+  return price.toFixed(2)
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -82,6 +107,7 @@ export function GenerateTicketsDialog({
   const [month, setMonth] = useState(defaultMonth)
   const [preview, setPreview] = useState<PreviewResult | null>(null)
   const [variableQuantities, setVariableQuantities] = useState<Record<string, string>>({})
+  const [variableModes, setVariableModes] = useState<Record<string, "quantity" | "price">>({})
   const [isLoadingPreview, startPreviewTransition] = useTransition()
   const [isGenerating, startGenerateTransition] = useTransition()
 
@@ -103,6 +129,7 @@ export function GenerateTicketsDialog({
       setMonth(defaultMonth)
       setPreview(null)
       setVariableQuantities({})
+      setVariableModes({})
     }
   }
 
@@ -126,7 +153,7 @@ export function GenerateTicketsDialog({
 
   function handleGenerate() {
     startGenerateTransition(async () => {
-      const result = await generateTicketsAction(contractId, year, month, variableQuantities)
+      const result = await generateTicketsAction(contractId, year, month, variableQuantities, variableModes)
       if (!result.success) {
         toast.error(result.error)
         return
@@ -249,12 +276,45 @@ export function GenerateTicketsDialog({
                       {formatMoney(draft.amount, currency)}
                     </span>
                   ) : (
-                    <div className="shrink-0 w-32">
+                    <div className="shrink-0 w-44 space-y-1.5">
+                      {/* Toggle modo */}
+                      <div className="flex rounded-md border overflow-hidden text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setVariableModes((p) => ({ ...p, [draft.contractItemId]: "quantity" }))}
+                          className={cn(
+                            "flex-1 px-2 py-1 transition-colors",
+                            (variableModes[draft.contractItemId] ?? "quantity") === "quantity"
+                              ? "bg-primary text-primary-foreground"
+                              : "hover:bg-muted text-muted-foreground"
+                          )}
+                        >
+                          Cantidad
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setVariableModes((p) => ({ ...p, [draft.contractItemId]: "price" }))}
+                          className={cn(
+                            "flex-1 px-2 py-1 transition-colors",
+                            variableModes[draft.contractItemId] === "price"
+                              ? "bg-primary text-primary-foreground"
+                              : "hover:bg-muted text-muted-foreground"
+                          )}
+                        >
+                          Precio
+                        </button>
+                      </div>
+
+                      {/* Input */}
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        placeholder="Cantidad"
+                        placeholder={
+                          variableModes[draft.contractItemId] === "price"
+                            ? "Precio final"
+                            : "Cantidad (ej: 1500)"
+                        }
                         value={variableQuantities[draft.contractItemId] ?? ""}
                         onChange={(e) =>
                           setVariableQuantities((prev) => ({
@@ -263,6 +323,21 @@ export function GenerateTicketsDialog({
                           }))
                         }
                       />
+
+                      {/* Preview del precio calculado (solo en modo cantidad) */}
+                      {(variableModes[draft.contractItemId] ?? "quantity") === "quantity" &&
+                        variableQuantities[draft.contractItemId] &&
+                        draft.pricingTiers && (() => {
+                          const preview = calcPricePreview(
+                            draft.pricingTiers!,
+                            variableQuantities[draft.contractItemId]
+                          )
+                          return preview ? (
+                            <p className="text-xs text-muted-foreground">
+                              → {formatMoney(preview, currency)}
+                            </p>
+                          ) : null
+                        })()}
                     </div>
                   )}
                 </div>

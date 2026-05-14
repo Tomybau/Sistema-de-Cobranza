@@ -133,6 +133,13 @@ export type PreviewResult =
         dueDate: string
         description: string | null
         breakdownNote: string | null
+        pricingTiers: Array<{
+          id: string
+          fromQuantity: string
+          toQuantity: string | null
+          unitPrice: string
+          flatFee: string | null
+        }> | null
       }>
       skipped: number
     }
@@ -161,14 +168,15 @@ export async function generateTicketsAction(
   contractId: string,
   year: number,
   month: number,
-  variableQuantities: Record<string, string>
+  variableQuantities: Record<string, string>,
+  variableModes: Record<string, "quantity" | "price"> = {}
 ): Promise<GenerateTicketsResult> {
   const session = await auth()
   const userId = session?.user?.id
 
   try {
     const periodDate = buildPeriodDate(year, month)
-    const result = await generateBillingTickets(contractId, periodDate, variableQuantities, userId)
+    const result = await generateBillingTickets(contractId, periodDate, variableQuantities, variableModes, userId)
     revalidatePath(`/contracts/${contractId}`)
     return {
       success: true,

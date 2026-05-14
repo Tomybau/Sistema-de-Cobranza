@@ -30,7 +30,8 @@ export interface PickedDraft {
 export async function generateBillingTickets(
   contractId: string,
   periodDate: Date,
-  variableQuantities: Record<string, string>, // itemId → quantity (Decimal string)
+  variableQuantities: Record<string, string>, // itemId → quantity o precio (según mode)
+  variableModes: Record<string, "quantity" | "price">, // itemId → cómo interpretar el valor
   userId?: string
 ): Promise<GenerateResult> {
   // ── 1. Load contract + items + pricing tiers ──────────────────────────────
@@ -108,19 +109,31 @@ export async function generateBillingTickets(
 
   for (const draft of allDrafts) {
     if (draft.status === "NEEDS_QUANTITY") {
-      const qty = variableQuantities[draft.contractItemId]
-      if (qty !== undefined && qty !== "") {
-        // Resolve the amount using the pricing table
-        const domainItem = domainItems.find((i) => i.id === draft.contractItemId)
-        if (domainItem?.pricingTable) {
-          const amount = calculateVariableAmount(domainItem.pricingTable, qty)
+      const inputValue = variableQuantities[draft.contractItemId]
+      const mode = variableModes[draft.contractItemId] ?? "quantity"
+
+      if (inputValue !== undefined && inputValue !== "") {
+        if (mode === "price") {
+          // El usuario ingresó el precio final directamente
+          const priceDecimal = new Prisma.Decimal(inputValue).toDecimalPlaces(2)
           readyDrafts.push({
             ...draft,
-            amount,
+            amount: priceDecimal.toString(),
             status: "READY",
           })
         } else {
-          needsInputDrafts.push(draft)
+          // El usuario ingresó la cantidad — calcular precio desde la tabla
+          const domainItem = domainItems.find((i) => i.id === draft.contractItemId)
+          if (domainItem?.pricingTable) {
+            const amount = calculateVariableAmount(domainItem.pricingTable, inputValue)
+            readyDrafts.push({
+              ...draft,
+              amount,
+              status: "READY",
+            })
+          } else {
+            needsInputDrafts.push(draft)
+          }
         }
       } else {
         needsInputDrafts.push(draft)
@@ -166,7 +179,9 @@ export async function generateBillingTickets(
             amount: new Prisma.Decimal(draft.amount),
             currency: draft.currency,
             variableQuantity:
-              draft.type === "RECURRING_VARIABLE" && variableQuantities[draft.contractItemId]
+              draft.type === "RECURRING_VARIABLE" &&
+              variableModes[draft.contractItemId] !== "price" &&
+              variableQuantities[draft.contractItemId]
                 ? new Prisma.Decimal(variableQuantities[draft.contractItemId])
                 : null,
             description: draft.description ?? null,
@@ -228,6 +243,13 @@ export async function previewBillingTickets(
     dueDate: string
     description: string | null
     breakdownNote: string | null
+    pricingTiers: Array<{
+      id: string
+      fromQuantity: string
+      toQuantity: string | null
+      unitPrice: string
+      flatFee: string | null
+    }> | null
   }>
   skipped: number
 }> {
@@ -321,6 +343,9 @@ export async function previewBillingTickets(
       dueDate: d.dueDate.toISOString(),
       description: d.description,
       breakdownNote: d.breakdownNote,
+      pricingTiers: d.type === "RECURRING_VARIABLE"
+        ? (domainItems.find((i) => i.id === d.contractItemId)?.pricingTable?.tiers ?? null)
+        : null,
     })),
     skipped,
   }
