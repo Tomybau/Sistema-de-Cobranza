@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts"
 import type { PieLabelRenderProps } from "recharts"
@@ -79,6 +80,9 @@ const renderCustomizedLabel = (props: PieLabelRenderProps) => {
 };
 
 export function TicketStatusChart({ data }: TicketStatusChartProps) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   // Filter out statuses with 0 count and inject name for legend
   const chartData = useMemo(() => {
     return data
@@ -104,7 +108,7 @@ export function TicketStatusChart({ data }: TicketStatusChartProps) {
           </div>
         ) : (
           <div className="h-[300px] w-full relative">
-            <ResponsiveContainer width="100%" height="100%">
+            {mounted && <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={chartData}
@@ -131,7 +135,7 @@ export function TicketStatusChart({ data }: TicketStatusChartProps) {
                   wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
                 />
               </PieChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
             {/* Center Total */}
             <div className="absolute top-[calc(50%-25px)] left-1/2 -transform-x-1/2 -translate-y-1/2 -translate-x-1/2 text-center pointer-events-none">
               <div className="text-3xl font-bold text-foreground">{totalCount}</div>

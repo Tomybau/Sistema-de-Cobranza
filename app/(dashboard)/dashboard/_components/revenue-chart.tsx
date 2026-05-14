@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
 import type { RevenueMonthData } from "../_data/get-revenue-by-month"
@@ -37,6 +38,9 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export function RevenueChart({ data }: RevenueChartProps) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   return (
     <Card className="col-span-full lg:col-span-4">
       <CardHeader>
@@ -45,7 +49,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
       </CardHeader>
       <CardContent>
         <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          {!mounted ? null : <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
               margin={{
@@ -91,7 +95,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
                 maxBarSize={40}
               />
             </BarChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer>}
         </div>
       </CardContent>
     </Card>
