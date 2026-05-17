@@ -27,9 +27,14 @@ export const ocrContractItemSchema = z.object({
   quotaUnit: z.string().nullable(),
   pricingTableName: z.string().nullable(),
   pricingTiers: z.array(ocrPricingTierSchema).nullable(),
-  // Nuevos campos para INSTALLMENT con hitos
-  milestoneLabels: z.array(z.string()).nullable(),  // etiqueta por cuota
-  breakdownNote: z.string().nullable(),              // composición del monto
+  // Plan de cuotas con porcentaje por hito (INSTALLMENT)
+  installmentPlan: z.array(
+    z.object({
+      label: z.string(),       // descripción del hito ("Firma del contrato", etc.)
+      percentage: z.number(),  // % del totalAmount que se cobra en esta cuota
+    })
+  ).nullable(),
+  breakdownNote: z.string().nullable(), // composición del monto total (si es bundle)
   reasoning: z.string().nullable(),
 })
 
@@ -85,3 +90,4 @@ export type OcrPricingTier = z.infer<typeof ocrPricingTierSchema>
 export type OcrContractResult = z.infer<typeof ocrContractResultSchema>
 export type OcrContractItem = z.infer<typeof ocrContractItemSchema>
 export type OcrCoContractor = z.infer<typeof ocrCoContractorSchema>
+export type OcrInstallmentPlanEntry = { label: string; percentage: number }

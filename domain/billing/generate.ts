@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client"
 import { createAuditLog } from "@/domain/audit"
 import { calculateTicketsForContract, calculateVariableAmount } from "./calculate"
 import { getExistingTicketRefs } from "./queries"
-import type { BillingContractItem, BillingPricingTable, TicketDraft } from "./types"
+import type { BillingContractItem, BillingPricingTable, InstallmentPlanEntry, TicketDraft } from "./types"
 
 export interface GenerateResult {
   inserted: number
@@ -80,6 +80,7 @@ export async function generateBillingTickets(
       totalAmount: item.totalAmount?.toString() ?? null,
       installments: item.installments ?? null,
       milestoneLabels: Array.isArray(item.milestoneLabels) ? (item.milestoneLabels as string[]) : null,
+      installmentPlan: Array.isArray(item.installmentPlan) ? (item.installmentPlan as unknown as InstallmentPlanEntry[]) : null,
       breakdownNote: item.breakdownNote ?? null,
       billingDayOfMonth: item.billingDayOfMonth ?? null,
       isActive: item.isActive,
@@ -293,6 +294,7 @@ export async function previewBillingTickets(
     totalAmount: item.totalAmount?.toString() ?? null,
     installments: item.installments ?? null,
     milestoneLabels: Array.isArray(item.milestoneLabels) ? (item.milestoneLabels as string[]) : null,
+    installmentPlan: Array.isArray(item.installmentPlan) ? (item.installmentPlan as unknown as InstallmentPlanEntry[]) : null,
     breakdownNote: item.breakdownNote ?? null,
     billingDayOfMonth: item.billingDayOfMonth ?? null,
     isActive: item.isActive,

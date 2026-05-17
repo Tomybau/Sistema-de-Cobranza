@@ -208,6 +208,7 @@ export async function createContractFullAction(
             totalAmount: item.totalAmount?.trim() ? toDecimal(item.totalAmount) : null,
             installments: item.installments ?? null,
             milestoneLabels: item.milestoneLabels?.length ? item.milestoneLabels : undefined,
+            installmentPlan: item.installmentPlan?.length ? item.installmentPlan : undefined,
             breakdownNote: item.breakdownNote?.trim() || null,
             quotaLimit: item.quotaLimit?.trim() ? toDecimal(item.quotaLimit) : null,
             quotaUnit: item.quotaUnit?.trim() || null,

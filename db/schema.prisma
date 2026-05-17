@@ -210,7 +210,8 @@ model ContractItem {
   quotaUnit       String?
   durationMonths  Int?
   // Metadata de hitos y desglose (para INSTALLMENT)
-  milestoneLabels Json?    // String[] — etiqueta por cuota (ej: ["Firma", "Producción", "Desarrollo"])
+  milestoneLabels Json?    // String[] — etiqueta por cuota (legado; preferir installmentPlan)
+  installmentPlan Json?    // [{label, percentage}][] — plan de cuotas con porcentaje por hito
   breakdownNote   String?  // explicación del monto (ej: "Impl. Fase I $1,600 + 15 meses $7,500")
 
   isActive  Boolean   @default(true)

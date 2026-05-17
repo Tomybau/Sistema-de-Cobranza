@@ -41,6 +41,7 @@ const fixedItem: BillingContractItem = {
   totalAmount: null,
   installments: null,
   milestoneLabels: null,
+  installmentPlan: null,
   breakdownNote: null,
   billingDayOfMonth: 10,
   isActive: true,
@@ -65,6 +66,7 @@ const variableItem: BillingContractItem = {
   totalAmount: null,
   installments: null,
   milestoneLabels: null,
+  installmentPlan: null,
   breakdownNote: null,
   billingDayOfMonth: 10,
   isActive: true,
@@ -82,6 +84,7 @@ const oneTimeItem: BillingContractItem = {
   totalAmount: "5000.00",
   installments: null,
   milestoneLabels: null,
+  installmentPlan: null,
   breakdownNote: null,
   billingDayOfMonth: null,
   isActive: true,
@@ -89,16 +92,41 @@ const oneTimeItem: BillingContractItem = {
   endDate: null,
 }
 
+// INSTALLMENT con partes iguales (legado — sin installmentPlan)
 const installmentItem: BillingContractItem = {
   id: "item-inst-998877",
   type: "INSTALLMENT",
-  name: "Implementación (3 cuotas)",
+  name: "Implementación (3 cuotas iguales)",
   fixedAmount: null,
   pricingTableId: null,
   pricingTable: null,
   totalAmount: "9000.00",
   installments: 3,
   milestoneLabels: ["Firma del contrato", "Listo en producción", "Desarrollo terminado"],
+  installmentPlan: null,
+  breakdownNote: null,
+  billingDayOfMonth: 10,
+  isActive: true,
+  startDate: new Date("2026-04-01T00:00:00Z"),
+  endDate: null,
+}
+
+// INSTALLMENT con porcentajes distintos por hito
+const installmentItemPct: BillingContractItem = {
+  id: "item-inst-pct-112233",
+  type: "INSTALLMENT",
+  name: "Implementación (30/30/40)",
+  fixedAmount: null,
+  pricingTableId: null,
+  pricingTable: null,
+  totalAmount: "1860.00",
+  installments: 3,
+  milestoneLabels: null,
+  installmentPlan: [
+    { label: "Firma del contrato",   percentage: 30 },
+    { label: "Listo en producción",  percentage: 30 },
+    { label: "Desarrollo terminado", percentage: 40 },
+  ],
   breakdownNote: null,
   billingDayOfMonth: 10,
   isActive: true,
@@ -236,6 +264,39 @@ const s5b = calculateTicketsForContract({
   existingTickets: s5Existing,
 })
 printDrafts("5b. ONE_TIME, segunda vez (mes diferente) → 0 tickets", s5b)
+
+// ─── Escenario 4b: INSTALLMENT con porcentajes distintos (installmentPlan) ────
+
+console.log(`\n${"─".repeat(60)}`)
+console.log("ESCENARIO 4b. INSTALLMENT — 30%/30%/40% sobre $1,860")
+console.log("  Esperado: cuota1=$558.00, cuota2=$558.00, cuota3=$744.00")
+const instPctExisting: ExistingTicketRef[] = []
+
+for (const [label, period] of [
+  ["Mes 1 (abril)", APRIL],
+  ["Mes 2 (mayo)", MAY],
+  ["Mes 3 (junio)", JUNE],
+  ["Mes 4 (julio, fuera de rango)", JULY],
+] as [string, Date][]) {
+  const result = calculateTicketsForContract({
+    contract,
+    items: [installmentItemPct],
+    periodDate: period,
+    issueDate,
+    existingTickets: [...instPctExisting],
+  })
+  if (result.length > 0) {
+    const d = result[0]
+    console.log(`  ${label}: cuota ${d.installmentNum} | $${d.amount} | ${d.description} | note: ${d.breakdownNote}`)
+    instPctExisting.push({
+      ticketNumber: d.ticketNumber,
+      contractItemId: d.contractItemId,
+      installmentNum: d.installmentNum,
+    })
+  } else {
+    console.log(`  ${label}: → sin ticket`)
+  }
+}
 
 // ─── Escenario 6: period anterior a contract.startDate ───────────────────────
 

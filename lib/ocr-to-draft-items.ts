@@ -74,7 +74,7 @@ function mapItem(item: OcrContractItem): DraftItemInput {
       totalAmount: n(item.totalAmount),
       installments: item.installments ?? 2,
       billingDayOfMonth: item.billingDayOfMonth ?? 1,
-      milestoneLabels: item.milestoneLabels?.length ? item.milestoneLabels : undefined,
+      installmentPlan: item.installmentPlan?.length ? item.installmentPlan : undefined,
       breakdownNote: item.breakdownNote ?? undefined,
     }
   }

@@ -25,6 +25,11 @@ export type DraftPricingTier = {
   flatFee?: string
 }
 
+export type InstallmentPlanEntry = {
+  label: string      // descripción del hito
+  percentage: number // % del totalAmount
+}
+
 export type DraftItemInput = {
   type: "RECURRING_FIXED" | "RECURRING_VARIABLE" | "ONE_TIME" | "INSTALLMENT"
   name: string
@@ -33,8 +38,9 @@ export type DraftItemInput = {
   billingDayOfMonth?: number
   totalAmount?: string
   installments?: number
-  milestoneLabels?: string[]    // etiqueta por cuota (INSTALLMENT)
-  breakdownNote?: string         // composición del monto (INSTALLMENT con prepago)
+  milestoneLabels?: string[]          // etiqueta por cuota (legado — sin porcentaje)
+  installmentPlan?: InstallmentPlanEntry[]  // plan con porcentaje por hito (preferir)
+  breakdownNote?: string               // composición del monto total
   newPricingTableName?: string
   newPricingTableTiers?: DraftPricingTier[]
   quotaLimit?: string

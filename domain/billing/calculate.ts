@@ -299,13 +299,36 @@ export function calculateTicketsForContract(params: {
           issueDate,
         })
 
-        const perInstallment = new Prisma.Decimal(item.totalAmount)
-          .div(item.installments)
-          .toDecimalPlaces(2)
+        // ── Determinar monto y descripción por cuota ──────────────────────────
+        const planEntry = item.installmentPlan?.[installmentNum - 1] ?? null
 
-        // Usar el label del hito si existe, sino null
-        const milestoneDescription =
-          item.milestoneLabels?.[installmentNum - 1] ?? null
+        let installmentAmount: string
+        let installmentDescription: string | null
+        let installmentBreakdownNote: string | null
+
+        if (planEntry) {
+          // Plan con porcentaje explícito — monto = pct% del total
+          installmentAmount = new Prisma.Decimal(item.totalAmount)
+            .mul(new Prisma.Decimal(planEntry.percentage))
+            .div(100)
+            .toDecimalPlaces(2)
+            .toString()
+          installmentDescription = planEntry.label
+          installmentBreakdownNote = [
+            `Cuota ${installmentNum}/${item.installments} — ${planEntry.percentage}%`,
+            item.breakdownNote,
+          ]
+            .filter(Boolean)
+            .join(" | ") || null
+        } else {
+          // Fallback: división igual + label de milestoneLabels si existe
+          installmentAmount = new Prisma.Decimal(item.totalAmount)
+            .div(item.installments)
+            .toDecimalPlaces(2)
+            .toString()
+          installmentDescription = item.milestoneLabels?.[installmentNum - 1] ?? null
+          installmentBreakdownNote = item.breakdownNote
+        }
 
         drafts.push({
           contractItemId: item.id,
@@ -316,12 +339,12 @@ export function calculateTicketsForContract(params: {
           periodEnd: period.periodEnd,
           issueDate: period.issueDate,
           dueDate: period.dueDate,
-          amount: perInstallment.toString(),
+          amount: installmentAmount,
           currency: contract.currency,
           pricingTableId: null,
           installmentNum,
-          description: milestoneDescription,
-          breakdownNote: item.breakdownNote,
+          description: installmentDescription,
+          breakdownNote: installmentBreakdownNote,
           status: "READY",
         })
         break

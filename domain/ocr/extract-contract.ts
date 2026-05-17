@@ -43,8 +43,10 @@ Estructura de salida:
       "fixedAmount": "number | null",
       "totalAmount": "number | null",
       "installments": "number | null",
-      "milestoneLabels": ["string", ...] | null,  // para INSTALLMENT: 1 label por cuota en orden
-      "breakdownNote": "string | null",            // para INSTALLMENT: de qué está compuesto el monto
+      "installmentPlan": [                         // para INSTALLMENT: 1 entrada por cuota en orden cronológico
+        { "label": "string", "percentage": number } // label = descripción del hito, percentage = % del total
+      ] | null,
+      "breakdownNote": "string | null",            // para INSTALLMENT: de qué está compuesto el monto total
       "durationMonths": "number | null",
       "billingDayOfMonth": "number | null",
       "quotaLimit": "number | null",
@@ -122,24 +124,44 @@ REGLAS DE CLASIFICACIÓN DE ÍTEMS
 4. INSTALLMENT — total dividido en N cuotas con hitos específicos de pago.
    - totalAmount = monto TOTAL (suma de todas las cuotas)
    - installments = cantidad de cuotas
-   - milestoneLabels = array con 1 label por cuota, en orden cronológico
-   - breakdownNote = si el total es la suma de varios componentes, describirlos
+   - installmentPlan = array con 1 entrada por cuota en orden cronológico.
+     Cada entrada: { label: "descripción del hito", percentage: número }
+     El sistema calcula el monto de cada cuota = percentage / 100 × totalAmount.
+     NO calcules el monto de cada cuota — solo extrae el porcentaje.
+   - breakdownNote = si el total es la suma de varios componentes, describirlos.
+   - Si el contrato NO especifica porcentajes distintos → installmentPlan = null
+     (el sistema dividirá en partes iguales).
 
    Ejemplos:
    a) "Implementación $1,860 pagado 30% firma + 30% listo en producción + 40% desarrollo terminado"
       → type=INSTALLMENT, totalAmount=1860, installments=3
-      → milestoneLabels=["Firma del contrato", "Listo en producción", "Desarrollo terminado"]
-      → breakdownNote=null (es un solo concepto)
+      → installmentPlan=[
+          {"label": "Firma del contrato",     "percentage": 30},
+          {"label": "Listo en producción",    "percentage": 30},
+          {"label": "Desarrollo terminado",   "percentage": 40}
+        ]
+      → breakdownNote=null
 
    b) "50% ($4,950) en la firma + 50% ($4,950) con término del desarrollo.
        Desglose: Impl. Fase I $1,600 + Impl. Fase II $800 + 15 meses $7,500 = $9,900"
       → type=INSTALLMENT, totalAmount=9900, installments=2
-      → milestoneLabels=["Firma del contrato", "Salida a producción"]
+      → installmentPlan=[
+          {"label": "Firma del contrato",    "percentage": 50},
+          {"label": "Salida a producción",   "percentage": 50}
+        ]
       → breakdownNote="Impl. Fase I $1,600 + Impl. Fase II $800 + 15 meses $7,500"
 
    c) "40% firma + 40% sistema listo para pruebas + 20% término del desarrollo. Total $71,700"
       → type=INSTALLMENT, totalAmount=71700, installments=3
-      → milestoneLabels=["Firma del contrato", "Sistema disponible para pruebas", "Término del desarrollo"]
+      → installmentPlan=[
+          {"label": "Firma del contrato",                    "percentage": 40},
+          {"label": "Sistema disponible para pruebas",       "percentage": 40},
+          {"label": "Término del desarrollo",                "percentage": 20}
+        ]
+
+   d) "Implementación en 3 cuotas iguales de $600 c/u. Total $1,800"
+      → type=INSTALLMENT, totalAmount=1800, installments=3, installmentPlan=null
+      (partes iguales — el sistema calcula $600 cada una)
 
    CRÍTICO: si el monto total INCLUYE mensualidades prepagadas (no se generarán tickets mensuales),
    consignarlo en breakdownNote. NO crear un ítem RECURRING_FIXED separado para esas mensualidades.

@@ -14,6 +14,12 @@ export interface BillingPricingTable {
   tiers: BillingPricingTier[]
 }
 
+// Un hito dentro de un plan de cuotas con porcentaje explícito
+export interface InstallmentPlanEntry {
+  label: string       // descripción del hito ("Firma del contrato", etc.)
+  percentage: number  // porcentaje del totalAmount (ej: 30 → 30%)
+}
+
 export interface BillingContractItem {
   id: string
   type: "RECURRING_FIXED" | "RECURRING_VARIABLE" | "ONE_TIME" | "INSTALLMENT"
@@ -23,8 +29,9 @@ export interface BillingContractItem {
   pricingTable: BillingPricingTable | null
   totalAmount: string | null
   installments: number | null
-  milestoneLabels: string[] | null  // etiqueta por cuota (INSTALLMENT)
-  breakdownNote: string | null       // composición del monto (INSTALLMENT con prepago)
+  milestoneLabels: string[] | null        // etiqueta por cuota (legado — sin porcentaje)
+  installmentPlan: InstallmentPlanEntry[] | null  // plan con porcentaje por hito (preferir sobre milestoneLabels)
+  breakdownNote: string | null             // composición del monto total
   billingDayOfMonth: number | null
   isActive: boolean
   startDate: Date | null
