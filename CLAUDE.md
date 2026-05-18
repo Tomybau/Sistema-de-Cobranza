@@ -94,7 +94,20 @@ Si una dependencia no está en esta lista y la necesitás, **proponémela y espe
 
 7. **Nunca destruyas datos críticos.** Soft delete con `deletedAt` para clientes, contratos, pagos. Hard delete solo para entidades de configuración (templates de mail, por ejemplo) y previa confirmación explícita.
 
-## Reglas absolutas
+## Reglas absolutas al terminar cualquier cambio
+
+Cada vez que se modifica algo en el proyecto, **siempre** como parte del cierre:
+
+1. **Bump de versión en `package.json`:**
+   - `patch` (0.x.**Y**) — fixes, correcciones menores
+   - `minor` (0.**X**.0) — features nuevas, mejoras visibles
+   - `major` (**X**.0.0) — cambios de arquitectura, breaking changes
+2. **Commit con mensaje descriptivo** (convención actual: `feat:`, `fix:`, `chore:`, etc.).
+3. **Push a `main`** — siempre, salvo que el usuario pida explícitamente no hacerlo.
+
+---
+
+## Reglas absolutas de código
 
 1. **Credenciales en `.env`, siempre.** Nunca hardcodees nada. Hay un `.env.example` con todas las variables que el sistema necesita.
 2. **Cero secretos en código, comentarios, tests, o ejemplos.**
