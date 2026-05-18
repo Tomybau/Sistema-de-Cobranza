@@ -362,11 +362,7 @@ export function ContractForm({
                 disabled={isPending}
               >
                 <SelectTrigger className={cn(ocrClass("companyId"))}>
-                  <SelectValue placeholder="Seleccioná una empresa">
-                    {watchedCompanyId
-                      ? (companies ?? []).find((c) => c.id === watchedCompanyId)?.legalName
-                      : undefined}
-                  </SelectValue>
+                  <SelectValue placeholder="Seleccioná una empresa" />
                 </SelectTrigger>
                 <SelectContent>
                   {(companies ?? []).map((c) => (
@@ -506,11 +502,7 @@ export function ContractForm({
             disabled={isPending || !!defaultValues}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Seleccioná una empresa">
-                {watchedCompanyId
-                  ? companies.find((c) => c.id === watchedCompanyId)?.legalName
-                  : undefined}
-              </SelectValue>
+              <SelectValue placeholder="Seleccioná una empresa" />
             </SelectTrigger>
             <SelectContent>
               {companies.map((c) => (

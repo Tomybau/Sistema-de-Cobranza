@@ -80,7 +80,7 @@ export function SendEmailDialog({ ticketId, templates, disabled }: SendEmailDial
               </SelectTrigger>
               <SelectContent>
                 {templates.map(t => (
-                  <SelectItem key={t.id} value={t.id}>
+                  <SelectItem key={t.id} value={t.id} label={`${t.name}${t.isDefault ? " (Default)" : ""}`}>
                     {t.name} {t.isDefault && "(Default)"}
                   </SelectItem>
                 ))}
