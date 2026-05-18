@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, Pencil, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -68,6 +68,24 @@ function newTier(): LocalTier {
   return { _id: uid(), from: "0", to: "", unitPrice: "0", flatFee: "" }
 }
 
+function fromInput(item: DraftItemInput): LocalDraft {
+  return {
+    type: item.type,
+    name: item.name,
+    description: item.description ?? "",
+    fixedAmount: item.fixedAmount ?? "",
+    billingDayOfMonth: item.billingDayOfMonth?.toString() ?? "1",
+    totalAmount: item.totalAmount ?? "",
+    installments: item.installments?.toString() ?? "2",
+    newPricingTableName: item.newPricingTableName ?? "",
+    quotaLimit: item.quotaLimit ?? "",
+    quotaUnit: item.quotaUnit ?? "",
+    durationMonths: item.durationMonths?.toString() ?? "",
+    _tiers:
+      item.newPricingTableTiers?.map((t) => ({ ...t, _id: uid() })) ?? [newTier()],
+  }
+}
+
 function toInput(item: LocalDraft): DraftItemInput {
   return {
     type: item.type,
@@ -99,14 +117,17 @@ interface DraftItemsSectionProps {
   items: DraftItemInput[]
   onAdd: (item: DraftItemInput) => void
   onRemove: (index: number) => void
+  onUpdate: (index: number, item: DraftItemInput) => void
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function DraftItemsSection({ items, onAdd, onRemove }: DraftItemsSectionProps) {
+export function DraftItemsSection({ items, onAdd, onRemove, onUpdate }: DraftItemsSectionProps) {
   const [showForm, setShowForm] = useState(false)
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [draft, setDraft] = useState<LocalDraft>(emptyDraft())
   const [formError, setFormError] = useState<string | null>(null)
+  const [expandedIndexes, setExpandedIndexes] = useState<Set<number>>(new Set())
 
   function setField<K extends keyof LocalDraft>(key: K, value: LocalDraft[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
@@ -125,6 +146,22 @@ export function DraftItemsSection({ items, onAdd, onRemove }: DraftItemsSectionP
       ...d,
       _tiers: d._tiers.map((t) => (t._id === id ? { ...t, [field]: value } : t)),
     }))
+  }
+
+  function toggleExpand(idx: number) {
+    setExpandedIndexes((prev) => {
+      const next = new Set(prev)
+      next.has(idx) ? next.delete(idx) : next.add(idx)
+      return next
+    })
+  }
+
+  function handleEdit(idx: number) {
+    setEditingIndex(idx)
+    setDraft(fromInput(items[idx]))
+    setFormError(null)
+    setShowForm(true)
+    setExpandedIndexes((prev) => { const n = new Set(prev); n.delete(idx); return n })
   }
 
   function validate(): string | null {
@@ -149,18 +186,25 @@ export function DraftItemsSection({ items, onAdd, onRemove }: DraftItemsSectionP
     return null
   }
 
-  function handleAdd() {
+  function handleSave() {
     const err = validate()
     if (err) { setFormError(err); return }
     setFormError(null)
-    onAdd(toInput(draft))
+    const item = toInput(draft)
+    if (editingIndex !== null) {
+      onUpdate(editingIndex, item)
+    } else {
+      onAdd(item)
+    }
     setDraft(emptyDraft())
+    setEditingIndex(null)
     setShowForm(false)
   }
 
   function handleCancel() {
     setShowForm(false)
     setFormError(null)
+    setEditingIndex(null)
     setDraft(emptyDraft())
   }
 
@@ -173,75 +217,204 @@ export function DraftItemsSection({ items, onAdd, onRemove }: DraftItemsSectionP
       {/* Item list */}
       {items.length > 0 && (
         <div className="space-y-1.5">
-          {items.map((item, idx) => (
-            <div
-              key={idx}
-              className={`flex flex-col gap-1 rounded-md border px-3 py-2 text-sm ${
-                item.needsReview ? "border-yellow-400/60 bg-yellow-50/40 dark:bg-yellow-900/10" : ""
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-muted-foreground w-5 text-xs tabular-nums">{idx + 1}</span>
-                <Badge variant="outline" className="text-xs shrink-0">
-                  {TYPE_LABELS[item.type]}
-                </Badge>
-                {item.needsReview && (
-                  <Badge variant="secondary" className="text-xs shrink-0 bg-yellow-200 text-yellow-900">
-                    Revisar
+          {items.map((item, idx) => {
+            const isExpanded = expandedIndexes.has(idx)
+            const isBeingEdited = editingIndex === idx && showForm
+            return (
+              <div
+                key={idx}
+                className={`rounded-md border text-sm ${
+                  isBeingEdited
+                    ? "border-primary/40 bg-primary/5"
+                    : item.needsReview
+                    ? "border-yellow-400/60 bg-yellow-50/40 dark:bg-yellow-900/10"
+                    : ""
+                }`}
+              >
+                {/* Header row */}
+                <div className="flex items-center gap-3 px-3 py-2">
+                  <span className="text-muted-foreground w-5 text-xs tabular-nums shrink-0">
+                    {idx + 1}
+                  </span>
+                  <Badge variant="outline" className="text-xs shrink-0">
+                    {TYPE_LABELS[item.type]}
                   </Badge>
-                )}
-                <span className="flex-1 font-medium truncate">{item.name}</span>
-                {item.type === "RECURRING_FIXED" && item.fixedAmount && (
-                  <span className="text-muted-foreground tabular-nums text-xs">
-                    ${item.fixedAmount}/mes
-                  </span>
-                )}
-                {item.type === "RECURRING_VARIABLE" && (
-                  <span className="text-muted-foreground text-xs truncate max-w-[10rem]">
-                    {item.newPricingTableName}
-                  </span>
-                )}
-                {(item.type === "ONE_TIME" || item.type === "INSTALLMENT") && item.totalAmount && (
-                  <span className="text-muted-foreground tabular-nums text-xs">
-                    ${item.totalAmount}
-                    {item.type === "INSTALLMENT" ? ` / ${item.installments} cuotas` : ""}
-                  </span>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive shrink-0"
-                  onClick={() => onRemove(idx)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              {(item.quotaLimit || item.durationMonths || item.description) && (
-                <div className="flex items-center gap-2 pl-8 text-xs text-muted-foreground flex-wrap">
-                  {item.quotaLimit && (
-                    <Badge variant="outline" className="text-xs font-normal">
-                      Incluye {item.quotaLimit} {item.quotaUnit ?? "unidades"}/mes
+                  {item.needsReview && (
+                    <Badge variant="secondary" className="text-xs shrink-0 bg-yellow-200 text-yellow-900">
+                      Revisar
                     </Badge>
                   )}
-                  {item.durationMonths && (
-                    <Badge variant="outline" className="text-xs font-normal">
-                      Vigencia {item.durationMonths} meses
-                    </Badge>
+                  <span className="flex-1 font-medium truncate">{item.name}</span>
+
+                  {/* Amount summary */}
+                  {item.type === "RECURRING_FIXED" && item.fixedAmount && (
+                    <span className="text-muted-foreground tabular-nums text-xs shrink-0">
+                      ${item.fixedAmount}/mes
+                    </span>
                   )}
-                  {item.description && (
-                    <span className="truncate flex-1 italic">{item.description}</span>
+                  {item.type === "RECURRING_VARIABLE" && (
+                    <span className="text-muted-foreground text-xs truncate max-w-[10rem] shrink-0">
+                      {item.newPricingTableName}
+                    </span>
                   )}
+                  {(item.type === "ONE_TIME" || item.type === "INSTALLMENT") && item.totalAmount && (
+                    <span className="text-muted-foreground tabular-nums text-xs shrink-0">
+                      ${item.totalAmount}
+                      {item.type === "INSTALLMENT" ? ` / ${item.installments} cuotas` : ""}
+                    </span>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title={isExpanded ? "Colapsar" : "Ver detalles"}
+                      onClick={() => toggleExpand(idx)}
+                    >
+                      {isExpanded
+                        ? <ChevronUp className="h-3.5 w-3.5" />
+                        : <ChevronDown className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      title="Editar"
+                      onClick={() => handleEdit(idx)}
+                      disabled={showForm && editingIndex !== idx}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive"
+                      title="Eliminar"
+                      onClick={() => onRemove(idx)}
+                      disabled={showForm && editingIndex === idx}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Badges row */}
+                {(item.quotaLimit || item.durationMonths || item.description) && !isExpanded && (
+                  <div className="flex items-center gap-2 pl-8 pb-2 pr-3 text-xs text-muted-foreground flex-wrap">
+                    {item.quotaLimit && (
+                      <Badge variant="outline" className="text-xs font-normal">
+                        Incluye {item.quotaLimit} {item.quotaUnit ?? "unidades"}/mes
+                      </Badge>
+                    )}
+                    {item.durationMonths && (
+                      <Badge variant="outline" className="text-xs font-normal">
+                        Vigencia {item.durationMonths} meses
+                      </Badge>
+                    )}
+                    {item.description && (
+                      <span className="truncate flex-1 italic">{item.description}</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Expanded detail panel */}
+                {isExpanded && (
+                  <div className="px-3 pb-3 pt-1 border-t space-y-2 bg-muted/20">
+                    {item.description && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-0.5">Descripción</p>
+                        <p className="text-xs">{item.description}</p>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+                      {item.billingDayOfMonth != null && (
+                        <div>
+                          <span className="text-muted-foreground">Día de facturación: </span>
+                          <span>{item.billingDayOfMonth}</span>
+                        </div>
+                      )}
+                      {item.durationMonths != null && (
+                        <div>
+                          <span className="text-muted-foreground">Duración: </span>
+                          <span>{item.durationMonths} meses</span>
+                        </div>
+                      )}
+                      {item.quotaLimit && (
+                        <div>
+                          <span className="text-muted-foreground">Cuota incluida: </span>
+                          <span>{item.quotaLimit} {item.quotaUnit ?? "unidades"}/mes</span>
+                        </div>
+                      )}
+                      {item.type === "INSTALLMENT" && item.installments && (
+                        <div>
+                          <span className="text-muted-foreground">Cuotas: </span>
+                          <span>{item.installments}</span>
+                        </div>
+                      )}
+                      {item.totalAmount && (
+                        <div>
+                          <span className="text-muted-foreground">Monto total: </span>
+                          <span>${item.totalAmount}</span>
+                        </div>
+                      )}
+                      {item.fixedAmount && (
+                        <div>
+                          <span className="text-muted-foreground">Monto fijo: </span>
+                          <span>${item.fixedAmount}/mes</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Pricing tiers */}
+                    {item.type === "RECURRING_VARIABLE" && item.newPricingTableTiers && item.newPricingTableTiers.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                          Tabla: {item.newPricingTableName}
+                        </p>
+                        <div className="rounded border bg-background overflow-hidden">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b bg-muted/50">
+                                <th className="text-left px-2 py-1 font-medium text-muted-foreground">Desde</th>
+                                <th className="text-left px-2 py-1 font-medium text-muted-foreground">Hasta</th>
+                                <th className="text-left px-2 py-1 font-medium text-muted-foreground">Precio unit.</th>
+                                <th className="text-left px-2 py-1 font-medium text-muted-foreground">Fee fijo</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {item.newPricingTableTiers.map((t, ti) => (
+                                <tr key={ti} className="border-b last:border-0">
+                                  <td className="px-2 py-1">{t.from}</td>
+                                  <td className="px-2 py-1">{t.to ?? "∞"}</td>
+                                  <td className="px-2 py-1">{t.unitPrice ? `$${t.unitPrice}` : "—"}</td>
+                                  <td className="px-2 py-1">{t.flatFee ? `$${t.flatFee}` : "—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
-      {/* Add form */}
+      {/* Add / Edit form */}
       {showForm ? (
         <div className="rounded-md border p-4 space-y-4 bg-muted/20">
+          <p className="text-xs font-medium text-muted-foreground">
+            {editingIndex !== null ? `Editando ítem ${editingIndex + 1}` : "Nuevo ítem"}
+          </p>
+
           {/* Type + Name */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -253,7 +426,9 @@ export function DraftItemsSection({ items, onAdd, onRemove }: DraftItemsSectionP
                 onValueChange={(v) => setField("type", v as LocalDraft["type"])}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue>
+                    {TYPE_LABELS[draft.type]}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(TYPE_LABELS).map(([val, label]) => (
@@ -274,6 +449,16 @@ export function DraftItemsSection({ items, onAdd, onRemove }: DraftItemsSectionP
                 placeholder="Ej: Soporte mensual"
               />
             </div>
+          </div>
+
+          {/* Descripción */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Descripción (opcional)</Label>
+            <Input
+              value={draft.description}
+              onChange={(e) => setField("description", e.target.value)}
+              placeholder="Descripción del ítem"
+            />
           </div>
 
           {/* RECURRING_FIXED */}
@@ -506,8 +691,8 @@ export function DraftItemsSection({ items, onAdd, onRemove }: DraftItemsSectionP
           {formError && <p className="text-sm text-destructive">{formError}</p>}
 
           <div className="flex gap-2">
-            <Button type="button" size="sm" onClick={handleAdd}>
-              Agregar ítem
+            <Button type="button" size="sm" onClick={handleSave}>
+              {editingIndex !== null ? "Guardar cambios" : "Agregar ítem"}
             </Button>
             <Button type="button" size="sm" variant="ghost" onClick={handleCancel}>
               Cancelar

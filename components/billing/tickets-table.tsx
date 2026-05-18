@@ -257,12 +257,12 @@ export function TicketsTable({ data }: TicketsTableProps) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Todos</SelectItem>
-            <SelectItem value="PENDING">{STATUS_LABELS["PENDING"]}</SelectItem>
-            <SelectItem value="SENT">{STATUS_LABELS["SENT"]}</SelectItem>
-            <SelectItem value="PAID">{STATUS_LABELS["PAID"]}</SelectItem>
-            <SelectItem value="OVERDUE">{STATUS_LABELS["OVERDUE"]}</SelectItem>
-            <SelectItem value="CANCELLED">{STATUS_LABELS["CANCELLED"]}</SelectItem>
-            <SelectItem value="PARTIAL">{STATUS_LABELS["PARTIAL"]}</SelectItem>
+            <SelectItem value="PENDING" label={STATUS_LABELS["PENDING"]}>{STATUS_LABELS["PENDING"]}</SelectItem>
+            <SelectItem value="SENT" label={STATUS_LABELS["SENT"]}>{STATUS_LABELS["SENT"]}</SelectItem>
+            <SelectItem value="PAID" label={STATUS_LABELS["PAID"]}>{STATUS_LABELS["PAID"]}</SelectItem>
+            <SelectItem value="OVERDUE" label={STATUS_LABELS["OVERDUE"]}>{STATUS_LABELS["OVERDUE"]}</SelectItem>
+            <SelectItem value="CANCELLED" label={STATUS_LABELS["CANCELLED"]}>{STATUS_LABELS["CANCELLED"]}</SelectItem>
+            <SelectItem value="PARTIAL" label={STATUS_LABELS["PARTIAL"]}>{STATUS_LABELS["PARTIAL"]}</SelectItem>
           </SelectContent>
         </Select>
       </div>

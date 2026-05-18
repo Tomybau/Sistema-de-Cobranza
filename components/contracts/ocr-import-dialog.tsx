@@ -534,7 +534,7 @@ export function OcrImportDialog({ onExtracted }: OcrImportDialogProps) {
                           </SelectTrigger>
                           <SelectContent>
                             {ITEM_TYPES.map((t) => (
-                              <SelectItem key={t} value={t} className="text-xs">
+                              <SelectItem key={t} value={t} label={ITEM_TYPE_LABEL[t]} className="text-xs">
                                 {ITEM_TYPE_LABEL[t]}
                               </SelectItem>
                             ))}

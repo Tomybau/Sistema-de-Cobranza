@@ -173,7 +173,7 @@ export function AuditLogTable({
             <SelectContent>
               <SelectItem value="_all">Todos</SelectItem>
               {users.map((u) => (
-                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
