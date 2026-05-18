@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 import { execSync } from "child_process";
 import { readFileSync } from "fs";
+import path from "path";
 
-const pkg = JSON.parse(readFileSync("./package.json", "utf-8")) as { version: string };
+const pkg = JSON.parse(readFileSync(path.join(process.cwd(), "package.json"), "utf-8")) as { version: string };
 
 let gitSha = "local";
 try {
