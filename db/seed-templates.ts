@@ -141,7 +141,7 @@ async function main() {
 
   console.log(`Empresas encontradas: ${companies.length}`)
 
-  let created = 0
+  const toCreate: Parameters<typeof prisma.emailTemplate.createMany>[0]["data"] = []
 
   for (const company of companies) {
     if (company.emailTemplates.length > 0) {
@@ -149,30 +149,31 @@ async function main() {
       continue
     }
 
-    await prisma.emailTemplate.createMany({
-      data: [
-        {
-          companyId: company.id,
-          name: "Recordatorio de cobro",
-          subject: RECORDATORIO_SUBJECT,
-          bodyHtml: RECORDATORIO_BODY,
-          isDefault: true,
-        },
-        {
-          companyId: company.id,
-          name: "Aviso de mora",
-          subject: MORA_SUBJECT,
-          bodyHtml: MORA_BODY,
-          isDefault: false,
-        },
-      ],
-    })
+    toCreate.push(
+      {
+        companyId: company.id,
+        name: "Recordatorio de cobro",
+        subject: RECORDATORIO_SUBJECT,
+        bodyHtml: RECORDATORIO_BODY,
+        isDefault: true,
+      },
+      {
+        companyId: company.id,
+        name: "Aviso de mora",
+        subject: MORA_SUBJECT,
+        bodyHtml: MORA_BODY,
+        isDefault: false,
+      },
+    )
 
-    console.log(`  ✅  ${company.legalName} — 2 templates creados`)
-    created += 2
+    console.log(`  ➕  ${company.legalName}`)
   }
 
-  console.log(`\nListo. Templates creados: ${created}`)
+  if (toCreate.length > 0) {
+    await prisma.emailTemplate.createMany({ data: toCreate })
+  }
+
+  console.log(`\nListo. Templates creados: ${toCreate.length}`)
 }
 
 main()
