@@ -360,6 +360,7 @@ export function ContractForm({
                 value={watchedCompanyId}
                 onValueChange={(v) => v != null && setValue("companyId", v)}
                 disabled={isPending}
+                items={Object.fromEntries((companies ?? []).map((c) => [c.id, c.legalName]))}
               >
                 <SelectTrigger className={cn(ocrClass("companyId"))}>
                   <SelectValue placeholder="Seleccioná una empresa" />
@@ -500,6 +501,7 @@ export function ContractForm({
             value={watchedCompanyId}
             onValueChange={(v) => v != null && setValue("companyId", v)}
             disabled={isPending || !!defaultValues}
+            items={Object.fromEntries((companies ?? []).map((c) => [c.id, c.legalName]))}
           >
             <SelectTrigger>
               <SelectValue placeholder="Seleccioná una empresa" />
@@ -547,6 +549,7 @@ export function ContractForm({
                 v != null && setValue("status", v as ContractFormValues["status"])
               }
               disabled={isPending}
+              items={STATUS_LABELS}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -610,6 +613,7 @@ export function ContractForm({
                 v != null && setValue("currency", v as ContractFormValues["currency"])
               }
               disabled={isPending || isActive}
+              items={Object.fromEntries(CURRENCIES.map((c) => [c, c]))}
             >
               <SelectTrigger>
                 <SelectValue />

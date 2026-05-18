@@ -5,6 +5,8 @@ import { FileUp, Loader2, Upload, CheckCircle2, Plus, Trash2 } from "lucide-reac
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -331,6 +333,46 @@ export function OcrImportDialog({ onExtracted }: OcrImportDialogProps) {
     })
   }
 
+  function updItemPlanEntry(itemIdx: number, entryIdx: number, field: "label" | "percentage", value: string | number) {
+    setEditableData((p) => {
+      if (!p) return p
+      const items = p.items.map((it, i) => {
+        if (i !== itemIdx) return it
+        const plan = (it.installmentPlan ?? []).map((e, ei) =>
+          ei === entryIdx ? { ...e, [field]: value } : e
+        )
+        return { ...it, installmentPlan: plan }
+      })
+      return { ...p, items }
+    })
+  }
+
+  function initItemPlan(itemIdx: number, installments: number, totalAmount: number | null) {
+    setEditableData((p) => {
+      if (!p) return p
+      const items = p.items.map((it, i) => {
+        if (i !== itemIdx) return it
+        const pct = installments > 0 ? parseFloat((100 / installments).toFixed(4)) : 0
+        const plan = Array.from({ length: installments }, (_, k) => ({
+          label: `Cuota ${k + 1}`,
+          percentage: pct,
+        }))
+        return { ...it, installmentPlan: plan }
+      })
+      return { ...p, items }
+    })
+  }
+
+  function clearItemPlan(itemIdx: number) {
+    setEditableData((p) => {
+      if (!p) return p
+      const items = p.items.map((it, i) =>
+        i !== itemIdx ? it : { ...it, installmentPlan: null }
+      )
+      return { ...p, items }
+    })
+  }
+
   const isProcessing = phase === "uploading" || phase === "processing"
 
   return (
@@ -528,6 +570,7 @@ export function OcrImportDialog({ onExtracted }: OcrImportDialogProps) {
                         <Select
                           value={item.type}
                           onValueChange={(v) => updItem(idx, { type: v as OcrContractItem["type"] })}
+                          items={ITEM_TYPE_LABEL}
                         >
                           <SelectTrigger className="h-8 text-xs w-36">
                             <SelectValue />
@@ -559,6 +602,17 @@ export function OcrImportDialog({ onExtracted }: OcrImportDialogProps) {
                       </div>
                     )}
 
+                    {/* Descripción */}
+                    <div className="space-y-0.5">
+                      <label className="text-xs text-muted-foreground">Descripción</label>
+                      <Textarea
+                        value={item.description ?? ""}
+                        onChange={(e) => updItem(idx, { description: e.target.value || null })}
+                        className="text-xs min-h-[56px] resize-none"
+                        placeholder="Descripción del item..."
+                      />
+                    </div>
+
                     {/* Monto total / cuotas */}
                     {(item.type === "ONE_TIME" || item.type === "INSTALLMENT" || item.totalAmount != null) && (
                       <div className="grid grid-cols-2 gap-2">
@@ -586,6 +640,74 @@ export function OcrImportDialog({ onExtracted }: OcrImportDialogProps) {
                               className="h-8 text-sm"
                               placeholder="2"
                             />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Desglose de cuotas con montos distintos */}
+                    {item.type === "INSTALLMENT" && (item.installments ?? 0) > 1 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            checked={!!item.installmentPlan?.length}
+                            onCheckedChange={(v) => {
+                              if (v) initItemPlan(idx, item.installments ?? 2, item.totalAmount)
+                              else clearItemPlan(idx)
+                            }}
+                          />
+                          <label className="text-xs text-muted-foreground cursor-pointer select-none">
+                            Cuotas con montos distintos
+                          </label>
+                        </div>
+                        {item.installmentPlan && item.installmentPlan.length > 0 && (
+                          <div className="rounded border overflow-hidden text-xs">
+                            <div className="grid grid-cols-[auto_1fr_80px_80px] gap-0 bg-muted/40 px-2 py-1 text-muted-foreground font-medium">
+                              <span className="w-6">#</span>
+                              <span>Hito / descripción</span>
+                              <span className="text-right">%</span>
+                              <span className="text-right">Monto</span>
+                            </div>
+                            {item.installmentPlan.map((entry, ei) => {
+                              const amount = item.totalAmount && entry.percentage
+                                ? (item.totalAmount * entry.percentage / 100).toFixed(2)
+                                : "—"
+                              return (
+                                <div key={ei} className="grid grid-cols-[auto_1fr_80px_80px] gap-1 items-center px-2 py-1 border-t">
+                                  <span className="w-6 text-muted-foreground">{ei + 1}</span>
+                                  <Input
+                                    value={entry.label}
+                                    onChange={(e) => updItemPlanEntry(idx, ei, "label", e.target.value)}
+                                    className="h-6 text-xs border-0 bg-transparent p-0 focus-visible:ring-0"
+                                    placeholder={`Cuota ${ei + 1}`}
+                                  />
+                                  <div className="flex items-center gap-0.5 justify-end">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      step="0.01"
+                                      value={entry.percentage}
+                                      onChange={(e) => updItemPlanEntry(idx, ei, "percentage", parseFloat(e.target.value) || 0)}
+                                      className="h-6 text-xs w-14 text-right"
+                                    />
+                                    <span className="text-muted-foreground">%</span>
+                                  </div>
+                                  <span className="text-right tabular-nums text-muted-foreground">
+                                    {amount !== "—" ? `$${amount}` : "—"}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                            {(() => {
+                              const total = item.installmentPlan.reduce((s, e) => s + e.percentage, 0)
+                              const ok = Math.abs(total - 100) < 0.01
+                              return (
+                                <div className={`px-2 py-1 border-t text-right text-xs font-medium ${ok ? "text-green-600" : "text-destructive"}`}>
+                                  Total: {total.toFixed(2)}% {!ok && "(debe ser 100%)"}
+                                </div>
+                              )
+                            })()}
                           </div>
                         )}
                       </div>

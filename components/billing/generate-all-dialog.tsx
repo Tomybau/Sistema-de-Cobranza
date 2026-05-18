@@ -527,6 +527,7 @@ export function GenerateAllDialog() {
             <Select
               value={String(month)}
               onValueChange={(v) => v != null && setMonth(Number(v))}
+              items={Object.fromEntries(MONTHS.map((m) => [String(m.value), m.label]))}
             >
               <SelectTrigger className="flex-1 min-w-[130px]">
                 <SelectValue placeholder="Mes" />
@@ -543,6 +544,7 @@ export function GenerateAllDialog() {
             <Select
               value={String(year)}
               onValueChange={(v) => v != null && setYear(Number(v))}
+              items={Object.fromEntries(years.map((y) => [String(y), String(y)]))}
             >
               <SelectTrigger className="w-28">
                 <SelectValue placeholder="Año" />

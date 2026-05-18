@@ -188,7 +188,11 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Cliente / Empresa</Label>
-            <Select value={clientId} onValueChange={handleClientChange}>
+            <Select
+              value={clientId}
+              onValueChange={handleClientChange}
+              items={Object.fromEntries(clients.map((c) => [c.id, c.name]))}
+            >
               <SelectTrigger className="h-auto whitespace-normal text-left">
                 <SelectValue placeholder="Seleccione un cliente..." />
               </SelectTrigger>
@@ -232,7 +236,11 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
 
           <div className="space-y-2">
             <Label>Método de Pago</Label>
-            <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
+            <Select
+              value={method}
+              onValueChange={(v) => setMethod(v as PaymentMethod)}
+              items={{ BANK_TRANSFER: "Transferencia", CHECK: "Cheque", CASH: "Efectivo", CREDIT_CARD: "Tarjeta", OTHER: "Otro" }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccione..." />
               </SelectTrigger>

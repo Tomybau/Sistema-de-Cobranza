@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   previewTicketsAction,
   generateTicketsAction,
@@ -108,6 +109,7 @@ export function GenerateTicketsDialog({
   const [preview, setPreview] = useState<PreviewResult | null>(null)
   const [variableQuantities, setVariableQuantities] = useState<Record<string, string>>({})
   const [variableModes, setVariableModes] = useState<Record<string, "quantity" | "price">>({})
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set())
   const [isLoadingPreview, startPreviewTransition] = useTransition()
   const [isGenerating, startGenerateTransition] = useTransition()
 
@@ -118,6 +120,10 @@ export function GenerateTicketsDialog({
     startPreviewTransition(async () => {
       const result = await previewTicketsAction(contractId, year, month)
       setPreview(result)
+      // Pre-select all items
+      if (result.success) {
+        setSelectedItemIds(new Set(result.drafts.map((d) => d.contractItemId)))
+      }
     })
   }, [contractId, open, year, month])
 
@@ -130,7 +136,17 @@ export function GenerateTicketsDialog({
       setPreview(null)
       setVariableQuantities({})
       setVariableModes({})
+      setSelectedItemIds(new Set())
     }
+  }
+
+  function toggleItem(contractItemId: string) {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(contractItemId)) next.delete(contractItemId)
+      else next.add(contractItemId)
+      return next
+    })
   }
 
   // VARIABLE drafts that still need a quantity
@@ -139,21 +155,27 @@ export function GenerateTicketsDialog({
       ? preview.drafts.filter((d) => d.status === "NEEDS_QUANTITY")
       : []
 
-  // Can confirm: no NEEDS_QUANTITY draft is missing its quantity
-  const allQuantitiesFilled = variableDrafts.every(
+  // Can confirm: no selected NEEDS_QUANTITY draft is missing its quantity
+  const selectedVariableDrafts = variableDrafts.filter((d) =>
+    selectedItemIds.has(d.contractItemId)
+  )
+  const allQuantitiesFilled = selectedVariableDrafts.every(
     (d) => variableQuantities[d.contractItemId]?.trim()
   )
 
   const canConfirm =
     preview?.success &&
-    preview.drafts.length > 0 &&
+    selectedItemIds.size > 0 &&
     allQuantitiesFilled &&
     !isLoadingPreview &&
     !isGenerating
 
   function handleGenerate() {
     startGenerateTransition(async () => {
-      const result = await generateTicketsAction(contractId, year, month, variableQuantities, variableModes)
+      const result = await generateTicketsAction(
+        contractId, year, month, variableQuantities, variableModes,
+        Array.from(selectedItemIds)
+      )
       if (!result.success) {
         toast.error(result.error)
         return
@@ -193,6 +215,7 @@ export function GenerateTicketsDialog({
             <Select
               value={String(month)}
               onValueChange={(v) => v != null && setMonth(Number(v))}
+              items={Object.fromEntries(MONTHS.map((m) => [String(m.value), m.label]))}
             >
               <SelectTrigger className="flex-1">
                 <SelectValue placeholder="Mes" />
@@ -209,6 +232,7 @@ export function GenerateTicketsDialog({
             <Select
               value={String(year)}
               onValueChange={(v) => v != null && setYear(Number(v))}
+              items={Object.fromEntries(years.map((y) => [String(y), String(y)]))}
             >
               <SelectTrigger className="w-28">
                 <SelectValue placeholder="Año" />
@@ -243,8 +267,21 @@ export function GenerateTicketsDialog({
 
             {!isLoadingPreview &&
               preview?.success &&
-              preview.drafts.map((draft) => (
+              preview.drafts.map((draft) => {
+                const isSelected = selectedItemIds.has(draft.contractItemId)
+                const isVariable = draft.status === "NEEDS_QUANTITY"
+                return (
                 <div key={draft.ticketNumber} className="flex items-start gap-2 text-sm">
+                  <Checkbox
+                    checked={isSelected}
+                    disabled={isVariable && !variableQuantities[draft.contractItemId]?.trim()}
+                    onCheckedChange={() => {
+                      if (!isVariable || variableQuantities[draft.contractItemId]?.trim()) {
+                        toggleItem(draft.contractItemId)
+                      }
+                    }}
+                    className="mt-0.5 shrink-0"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <Badge variant={STATUS_BADGE[draft.status] ?? "outline"} className="text-xs shrink-0">
@@ -341,7 +378,8 @@ export function GenerateTicketsDialog({
                     </div>
                   )}
                 </div>
-              ))}
+              )
+              })}
 
             {!isLoadingPreview && preview?.success && preview.skipped > 0 && preview.drafts.length > 0 && (
               <p className="text-xs text-muted-foreground pt-1 border-t">

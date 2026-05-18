@@ -169,14 +169,16 @@ export async function generateTicketsAction(
   year: number,
   month: number,
   variableQuantities: Record<string, string>,
-  variableModes: Record<string, "quantity" | "price"> = {}
+  variableModes: Record<string, "quantity" | "price"> = {},
+  selectedItemIds?: string[]
 ): Promise<GenerateTicketsResult> {
   const session = await auth()
   const userId = session?.user?.id
 
   try {
     const periodDate = buildPeriodDate(year, month)
-    const result = await generateBillingTickets(contractId, periodDate, variableQuantities, variableModes, userId)
+    const allowedItemIds = selectedItemIds ? new Set(selectedItemIds) : undefined
+    const result = await generateBillingTickets(contractId, periodDate, variableQuantities, variableModes, userId, allowedItemIds)
     revalidatePath(`/contracts/${contractId}`)
     return {
       success: true,

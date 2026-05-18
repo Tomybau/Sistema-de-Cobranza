@@ -74,7 +74,11 @@ export function SendEmailDialog({ ticketId, templates, disabled }: SendEmailDial
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Template a utilizar</label>
-            <Select value={selectedTemplate} onValueChange={(v) => { if (v !== null) setSelectedTemplate(v) }}>
+            <Select
+              value={selectedTemplate}
+              onValueChange={(v) => { if (v !== null) setSelectedTemplate(v) }}
+              items={Object.fromEntries(templates.map((t) => [t.id, `${t.name}${t.isDefault ? " (Default)" : ""}`]))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccione un template" />
               </SelectTrigger>

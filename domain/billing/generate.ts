@@ -34,7 +34,8 @@ export async function generateBillingTickets(
   periodDate: Date,
   variableQuantities: Record<string, string>, // itemId → quantity o precio (según mode)
   variableModes: Record<string, "quantity" | "price">, // itemId → cómo interpretar el valor
-  userId?: string
+  userId?: string,
+  allowedItemIds?: Set<string> // si se provee, solo genera estos items
 ): Promise<GenerateResult> {
   // ── 1. Load contract + items + pricing tiers ──────────────────────────────
   const contract = await prisma.contract.findFirst({
@@ -92,6 +93,10 @@ export async function generateBillingTickets(
   })
 
   // ── 4. Calculate drafts ───────────────────────────────────────────────────
+  const filteredItems = allowedItemIds
+    ? domainItems.filter((i) => allowedItemIds.has(i.id))
+    : domainItems
+
   const allDrafts = calculateTicketsForContract({
     contract: {
       contractNumber: contract.contractNumber,
@@ -100,7 +105,7 @@ export async function generateBillingTickets(
       startDate: contract.startDate,
       endDate: contract.endDate,
     },
-    items: domainItems,
+    items: filteredItems,
     periodDate,
     issueDate: new Date(),
     existingTickets: existingRefs,
@@ -157,7 +162,7 @@ export async function generateBillingTickets(
       startDate: contract.startDate,
       endDate: contract.endDate,
     },
-    items: domainItems,
+    items: filteredItems,
     periodDate,
     issueDate: new Date(),
     existingTickets: [],

@@ -202,6 +202,7 @@ export function ContractItemDrawer({
                 v != null && setValue("type", v as ContractItemFlatValues["type"])
               }
               disabled={isPending || isEditing}
+              items={TYPE_LABELS}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -294,6 +295,7 @@ export function ContractItemDrawer({
                   defaultValue={editItem?.pricingTableId ?? ""}
                   onValueChange={(v) => v != null && setValue("pricingTableId", v)}
                   disabled={isPending}
+                  items={Object.fromEntries(pricingTables.map((pt) => [pt.id, pt.name]))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccioná una tabla" />

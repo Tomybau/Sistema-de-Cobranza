@@ -37,7 +37,11 @@ export function CompanyFilter({ companies }: CompanyFilterProps) {
         <Building className="h-4 w-4" />
         Filtro global:
       </div>
-      <Select value={currentCompanyId} onValueChange={handleValueChange}>
+      <Select
+        value={currentCompanyId}
+        onValueChange={handleValueChange}
+        items={{ all: "Todas las empresas", ...Object.fromEntries(companies.map((c) => [c.id, c.name])) }}
+      >
         <SelectTrigger className="w-[220px]">
           <SelectValue placeholder="Todas las empresas" />
         </SelectTrigger>
