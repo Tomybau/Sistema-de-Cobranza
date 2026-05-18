@@ -141,7 +141,7 @@ async function main() {
 
   console.log(`Empresas encontradas: ${companies.length}`)
 
-  const toCreate: Parameters<typeof prisma.emailTemplate.createMany>[0]["data"] = []
+  const toCreate: { companyId: string; name: string; subject: string; bodyHtml: string; isDefault: boolean }[] = []
 
   for (const company of companies) {
     if (company.emailTemplates.length > 0) {
