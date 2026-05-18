@@ -100,6 +100,14 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </Link>
         ))}
       </nav>
+
+      {/* Versión */}
+      <div className="px-4 pt-3 border-t">
+        <p className="text-[11px] text-muted-foreground/60 tabular-nums">
+          v{process.env.NEXT_PUBLIC_APP_VERSION}
+          <span className="ml-1 font-mono">{process.env.NEXT_PUBLIC_GIT_SHA}</span>
+        </p>
+      </div>
     </aside>
   )
 }
