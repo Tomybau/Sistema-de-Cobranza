@@ -237,11 +237,11 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
                 <SelectValue placeholder="Seleccione..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="BANK_TRANSFER">Transferencia</SelectItem>
-                <SelectItem value="CHECK">Cheque</SelectItem>
-                <SelectItem value="CASH">Efectivo</SelectItem>
-                <SelectItem value="CREDIT_CARD">Tarjeta</SelectItem>
-                <SelectItem value="OTHER">Otro</SelectItem>
+                <SelectItem value="BANK_TRANSFER" label="Transferencia">Transferencia</SelectItem>
+                <SelectItem value="CHECK" label="Cheque">Cheque</SelectItem>
+                <SelectItem value="CASH" label="Efectivo">Efectivo</SelectItem>
+                <SelectItem value="CREDIT_CARD" label="Tarjeta">Tarjeta</SelectItem>
+                <SelectItem value="OTHER" label="Otro">Otro</SelectItem>
               </SelectContent>
             </Select>
           </div>

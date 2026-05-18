@@ -131,6 +131,7 @@ export function ContractForm({
   })
 
   const watchedStatus = watch("status")
+  const watchedCompanyId = watch("companyId")
   const isActive = defaultValues?.status === "ACTIVE"
 
   // --- Create-mode state ---
@@ -356,12 +357,16 @@ export function ContractForm({
                 Empresa <span className="text-destructive">*</span>
               </Label>
               <Select
-                defaultValue={preselectedCompanyId ?? ""}
+                value={watchedCompanyId}
                 onValueChange={(v) => v != null && setValue("companyId", v)}
                 disabled={isPending}
               >
                 <SelectTrigger className={cn(ocrClass("companyId"))}>
-                  <SelectValue placeholder="Seleccioná una empresa" />
+                  <SelectValue placeholder="Seleccioná una empresa">
+                    {watchedCompanyId
+                      ? (companies ?? []).find((c) => c.id === watchedCompanyId)?.legalName
+                      : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {(companies ?? []).map((c) => (
@@ -496,12 +501,16 @@ export function ContractForm({
             Empresa <span className="text-destructive">*</span>
           </Label>
           <Select
-            defaultValue={defaultValues?.companyId ?? preselectedCompanyId ?? ""}
+            value={watchedCompanyId}
             onValueChange={(v) => v != null && setValue("companyId", v)}
             disabled={isPending || !!defaultValues}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Seleccioná una empresa" />
+              <SelectValue placeholder="Seleccioná una empresa">
+                {watchedCompanyId
+                  ? companies.find((c) => c.id === watchedCompanyId)?.legalName
+                  : undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {companies.map((c) => (
@@ -714,6 +723,7 @@ export function ContractForm({
           items={draftItems}
           onAdd={(item) => setDraftItems((prev) => [...prev, item])}
           onRemove={(idx) => setDraftItems((prev) => prev.filter((_, i) => i !== idx))}
+          onUpdate={(idx, item) => setDraftItems((prev) => prev.map((x, i) => i === idx ? item : x))}
         />
       )}
 

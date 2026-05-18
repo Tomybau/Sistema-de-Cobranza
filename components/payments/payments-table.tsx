@@ -212,8 +212,8 @@ export function PaymentsTable({ data }: PaymentsTableProps) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Todos</SelectItem>
-            <SelectItem value="PROCESSED">{STATUS_LABELS["PROCESSED"]}</SelectItem>
-            <SelectItem value="CANCELLED">{STATUS_LABELS["CANCELLED"]}</SelectItem>
+            <SelectItem value="PROCESSED" label={STATUS_LABELS["PROCESSED"]}>{STATUS_LABELS["PROCESSED"]}</SelectItem>
+            <SelectItem value="CANCELLED" label={STATUS_LABELS["CANCELLED"]}>{STATUS_LABELS["CANCELLED"]}</SelectItem>
           </SelectContent>
         </Select>
       </div>
