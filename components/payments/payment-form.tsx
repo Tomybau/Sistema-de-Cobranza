@@ -207,7 +207,7 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
                 </div>
                 {filteredClients.length > 0 ? (
                   filteredClients.map(c => (
-                    <SelectItem key={c.id} value={c.id} className="items-start py-2">
+                    <SelectItem key={c.id} value={c.id} label={c.name} className="items-start py-2">
                       <span className="leading-snug">{c.name}</span>
                     </SelectItem>
                   ))

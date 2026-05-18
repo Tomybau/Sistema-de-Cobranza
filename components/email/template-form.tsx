@@ -149,7 +149,7 @@ export function TemplateForm({ companies, initialData }: TemplateFormProps) {
                     </FormControl>
                     <SelectContent>
                       {companies.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
+                        <SelectItem key={c.id} value={c.id} label={c.legalName}>
                           {c.legalName}
                         </SelectItem>
                       ))}

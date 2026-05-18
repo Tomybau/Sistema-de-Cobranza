@@ -426,9 +426,7 @@ export function DraftItemsSection({ items, onAdd, onRemove, onUpdate }: DraftIte
                 onValueChange={(v) => setField("type", v as LocalDraft["type"])}
               >
                 <SelectTrigger>
-                  <SelectValue>
-                    {TYPE_LABELS[draft.type]}
-                  </SelectValue>
+                  <SelectValue placeholder="Seleccioná un tipo" />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(TYPE_LABELS).map(([val, label]) => (
