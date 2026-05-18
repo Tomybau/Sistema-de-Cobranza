@@ -1,4 +1,5 @@
 import { prisma } from "@/db/client"
+import { Prisma } from "@prisma/client"
 import { contractItemSchema, type ContractItemFormValues } from "./schemas"
 import { toDecimal } from "@/lib/money"
 import { createAuditLog } from "@/domain/audit"
@@ -73,6 +74,10 @@ export async function addContractItem(
           : null,
       installments:
         parsed.type === "INSTALLMENT" ? parsed.installments : null,
+      installmentPlan:
+        parsed.type === "INSTALLMENT" && parsed.installmentPlan?.length
+          ? parsed.installmentPlan
+          : Prisma.JsonNull,
     },
   })
 

@@ -40,7 +40,7 @@ export default async function DashboardLayout({
           <SearchTrigger />
 
           <NotificationBell
-            initialNotifications={notifications.map((n) => ({
+            initialNotifications={notifications.map((n: (typeof notifications)[number]) => ({
               id: n.id,
               type: n.type,
               title: n.title,

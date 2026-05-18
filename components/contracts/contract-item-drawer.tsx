@@ -33,8 +33,14 @@ import {
   updateContractItemAction,
 } from "@/app/(dashboard)/contracts/[id]/actions"
 import type { ContractDetail } from "@/domain/contracts/queries"
+import { cn } from "@/lib/utils"
 
 type ContractItem = ContractDetail["items"][number]
+
+interface PlanEntry {
+  label: string
+  percentage: number | ""
+}
 
 const TYPE_LABELS = {
   RECURRING_FIXED: "Recurrente — monto fijo",
@@ -61,6 +67,9 @@ export function ContractItemDrawer({
   const [isPending, startTransition] = useTransition()
   const isEditing = !!editItem
 
+  const [customPlanEnabled, setCustomPlanEnabled] = useState(false)
+  const [planEntries, setPlanEntries] = useState<PlanEntry[]>([])
+
   const {
     register,
     handleSubmit,
@@ -74,24 +83,99 @@ export function ContractItemDrawer({
   })
 
   const itemType = watch("type")
+  const watchedInstallments = watch("installments") ?? 2
+  const watchedTotalAmount = watch("totalAmount") ?? ""
 
   // Sync defaults when editItem changes
   useEffect(() => {
     reset(buildDefaults(editItem))
+    const existingPlan = getExistingPlan(editItem)
+    if (existingPlan) {
+      setCustomPlanEnabled(true)
+      setPlanEntries(existingPlan)
+    } else {
+      setCustomPlanEnabled(false)
+      setPlanEntries([])
+    }
   }, [editItem, reset])
 
+  // Resize plan entries when installments count changes
+  useEffect(() => {
+    if (!customPlanEnabled) return
+    const n = Math.max(2, Math.min(60, Number(watchedInstallments) || 2))
+    setPlanEntries((prev) => {
+      if (prev.length === n) return prev
+      if (prev.length < n) {
+        return [
+          ...prev,
+          ...Array.from({ length: n - prev.length }, () => ({ label: "", percentage: "" as const })),
+        ]
+      }
+      return prev.slice(0, n)
+    })
+  }, [watchedInstallments, customPlanEnabled])
+
+  // When enabling custom plan, initialize entries
+  function handleToggleCustomPlan(enabled: boolean) {
+    setCustomPlanEnabled(enabled)
+    if (enabled) {
+      const n = Math.max(2, Math.min(60, Number(watchedInstallments) || 2))
+      // Keep existing entries or create blanks
+      setPlanEntries((prev) =>
+        prev.length === n
+          ? prev
+          : Array.from({ length: n }, (_, i) => prev[i] ?? { label: "", percentage: "" as const })
+      )
+    }
+  }
+
+  function updatePlanEntry(index: number, field: keyof PlanEntry, value: string) {
+    setPlanEntries((prev) =>
+      prev.map((entry, i) =>
+        i === index
+          ? { ...entry, [field]: field === "percentage" ? (value === "" ? "" : Number(value)) : value }
+          : entry
+      )
+    )
+  }
+
+  // Suma de porcentajes (solo los numéricos)
+  const sumPercentages = planEntries.reduce(
+    (acc, e) => acc + (typeof e.percentage === "number" ? e.percentage : 0),
+    0
+  )
+  const planValid = !customPlanEnabled || (sumPercentages === 100 && planEntries.every((e) => e.label.trim()))
+
+  // Monto calculado por cuota dado un porcentaje
+  function calcAmount(pct: number | ""): string {
+    const total = parseFloat(watchedTotalAmount)
+    if (!total || typeof pct !== "number" || pct <= 0) return "—"
+    return (total * pct / 100).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+
   function onSubmit(values: ContractItemFlatValues) {
+    if (!planValid) {
+      toast.error("La suma de porcentajes debe ser 100% y todos los hitos deben tener nombre.")
+      return
+    }
+
+    const finalValues: ContractItemFlatValues = {
+      ...values,
+      installmentPlan:
+        customPlanEnabled && planEntries.length > 0
+          ? planEntries.map((e) => ({ label: e.label, percentage: Number(e.percentage) }))
+          : null,
+    }
+
     startTransition(async () => {
       const result = isEditing
-        ? await updateContractItemAction(contractId, editItem!.id, values)
-        : await addContractItemAction(contractId, values)
+        ? await updateContractItemAction(contractId, editItem!.id, finalValues)
+        : await addContractItemAction(contractId, finalValues)
 
       if (!result.success) {
         toast.error(result.error)
       } else {
-        toast.success(
-          isEditing ? "Item actualizado" : "Item agregado al contrato"
-        )
+        toast.success(isEditing ? "Item actualizado" : "Item agregado al contrato")
         onOpenChange(false)
       }
     })
@@ -106,10 +190,7 @@ export function ContractItemDrawer({
           </SheetTitle>
         </SheetHeader>
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="space-y-4 mt-4 pr-1"
-        >
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4 pr-1">
           {/* Tipo */}
           <div className="space-y-2">
             <Label>
@@ -168,7 +249,8 @@ export function ContractItemDrawer({
             />
           </div>
 
-          {/* Campos condicionales por tipo */}
+          {/* ── Campos por tipo ── */}
+
           {itemType === "RECURRING_FIXED" && (
             <>
               <div className="space-y-2">
@@ -183,15 +265,12 @@ export function ContractItemDrawer({
                   aria-invalid={!!errors.fixedAmount}
                 />
                 {errors.fixedAmount && (
-                  <p className="text-sm text-destructive">
-                    {errors.fixedAmount.message}
-                  </p>
+                  <p className="text-sm text-destructive">{errors.fixedAmount.message}</p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="billingDayOfMonth">
-                  Día de facturación (1-28){" "}
-                  <span className="text-destructive">*</span>
+                  Día de facturación (1-28) <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="billingDayOfMonth"
@@ -200,13 +279,7 @@ export function ContractItemDrawer({
                   max={28}
                   disabled={isPending}
                   {...register("billingDayOfMonth", { valueAsNumber: true })}
-                  aria-invalid={!!errors.billingDayOfMonth}
                 />
-                {errors.billingDayOfMonth && (
-                  <p className="text-sm text-destructive">
-                    {errors.billingDayOfMonth.message}
-                  </p>
-                )}
               </div>
             </>
           )}
@@ -236,25 +309,16 @@ export function ContractItemDrawer({
                 {pricingTables.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     No hay tablas para este contrato.{" "}
-                    <a
-                      href={`/pricing-tables/new?contractId=${contractId}`}
-                      className="underline"
-                    >
+                    <a href={`/pricing-tables/new?contractId=${contractId}`} className="underline">
                       Crear tabla de precios
                     </a>
                     .
                   </p>
                 )}
-                {errors.pricingTableId && (
-                  <p className="text-sm text-destructive">
-                    {errors.pricingTableId.message}
-                  </p>
-                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="billingDayOfMonth-var">
-                  Día de facturación (1-28){" "}
-                  <span className="text-destructive">*</span>
+                  Día de facturación (1-28) <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="billingDayOfMonth-var"
@@ -263,13 +327,7 @@ export function ContractItemDrawer({
                   max={28}
                   disabled={isPending}
                   {...register("billingDayOfMonth", { valueAsNumber: true })}
-                  aria-invalid={!!errors.billingDayOfMonth}
                 />
-                {errors.billingDayOfMonth && (
-                  <p className="text-sm text-destructive">
-                    {errors.billingDayOfMonth.message}
-                  </p>
-                )}
               </div>
             </>
           )}
@@ -287,9 +345,7 @@ export function ContractItemDrawer({
                 aria-invalid={!!errors.totalAmount}
               />
               {errors.totalAmount && (
-                <p className="text-sm text-destructive">
-                  {errors.totalAmount.message}
-                </p>
+                <p className="text-sm text-destructive">{errors.totalAmount.message}</p>
               )}
             </div>
           )}
@@ -308,15 +364,13 @@ export function ContractItemDrawer({
                   aria-invalid={!!errors.totalAmount}
                 />
                 {errors.totalAmount && (
-                  <p className="text-sm text-destructive">
-                    {errors.totalAmount.message}
-                  </p>
+                  <p className="text-sm text-destructive">{errors.totalAmount.message}</p>
                 )}
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="installments">
-                  Cantidad de cuotas (2-60){" "}
-                  <span className="text-destructive">*</span>
+                  Cantidad de cuotas (2-60) <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="installments"
@@ -328,15 +382,13 @@ export function ContractItemDrawer({
                   aria-invalid={!!errors.installments}
                 />
                 {errors.installments && (
-                  <p className="text-sm text-destructive">
-                    {errors.installments.message}
-                  </p>
+                  <p className="text-sm text-destructive">{errors.installments.message}</p>
                 )}
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="billingDayOfMonth-inst">
-                  Día de facturación (1-28){" "}
-                  <span className="text-destructive">*</span>
+                  Día de facturación (1-28) <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="billingDayOfMonth-inst"
@@ -345,14 +397,78 @@ export function ContractItemDrawer({
                   max={28}
                   disabled={isPending}
                   {...register("billingDayOfMonth", { valueAsNumber: true })}
-                  aria-invalid={!!errors.billingDayOfMonth}
                 />
-                {errors.billingDayOfMonth && (
-                  <p className="text-sm text-destructive">
-                    {errors.billingDayOfMonth.message}
-                  </p>
-                )}
               </div>
+
+              {/* Toggle cuotas personalizadas */}
+              <div className="flex items-center gap-2 pt-1">
+                <Checkbox
+                  id="custom-plan"
+                  checked={customPlanEnabled}
+                  onCheckedChange={(v) => handleToggleCustomPlan(v === true)}
+                  disabled={isPending}
+                />
+                <Label htmlFor="custom-plan" className="cursor-pointer">
+                  Cuotas con montos distintos
+                </Label>
+              </div>
+
+              {/* Plan de cuotas */}
+              {customPlanEnabled && planEntries.length > 0 && (
+                <div className="space-y-2 rounded-md border p-3">
+                  <div className="grid grid-cols-[1fr_20px_72px_auto] gap-x-2 items-center mb-1">
+                    <p className="text-xs font-medium text-muted-foreground">Hito</p>
+                    <span />
+                    <p className="text-xs font-medium text-muted-foreground text-center">%</p>
+                    <p className="text-xs font-medium text-muted-foreground text-right">Monto</p>
+                  </div>
+
+                  {planEntries.map((entry, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_20px_72px_auto] gap-x-2 items-center">
+                      <Input
+                        placeholder={`Cuota ${i + 1}`}
+                        value={entry.label}
+                        onChange={(e) => updatePlanEntry(i, "label", e.target.value)}
+                        disabled={isPending}
+                        className="h-8 text-sm"
+                      />
+                      <span className="text-xs text-center text-muted-foreground">—</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.01}
+                        placeholder="0"
+                        value={entry.percentage}
+                        onChange={(e) => updatePlanEntry(i, "percentage", e.target.value)}
+                        disabled={isPending}
+                        className="h-8 text-sm text-center"
+                      />
+                      <span className="text-xs text-right tabular-nums text-muted-foreground min-w-[60px]">
+                        {calcAmount(entry.percentage)}
+                      </span>
+                    </div>
+                  ))}
+
+                  {/* Total */}
+                  <div className="flex items-center justify-between pt-2 border-t mt-2">
+                    <span className="text-xs text-muted-foreground">Total porcentaje</span>
+                    <span
+                      className={cn(
+                        "text-sm font-semibold tabular-nums",
+                        sumPercentages === 100
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-destructive"
+                      )}
+                    >
+                      {sumPercentages.toFixed(2)}%
+                      {sumPercentages !== 100 && (
+                        <span className="ml-1 font-normal text-xs">(debe ser 100%)</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -383,19 +499,15 @@ export function ContractItemDrawer({
             <Checkbox
               id="item-isActive"
               defaultChecked={editItem?.isActive ?? true}
-              onCheckedChange={(checked) =>
-                setValue("isActive", checked === true)
-              }
+              onCheckedChange={(checked) => setValue("isActive", checked === true)}
               disabled={isPending}
             />
             <Label htmlFor="item-isActive">Activo</Label>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" disabled={isPending}>
-              {isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
+            <Button type="submit" disabled={isPending || !planValid}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditing ? "Guardar cambios" : "Agregar item"}
             </Button>
             <Button
@@ -413,6 +525,19 @@ export function ContractItemDrawer({
   )
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getExistingPlan(item?: ContractItem): PlanEntry[] | null {
+  if (!item) return null
+  // installmentPlan es Json? en Prisma — puede ser any
+  const plan = (item as { installmentPlan?: unknown }).installmentPlan
+  if (!Array.isArray(plan) || plan.length === 0) return null
+  return plan.map((entry: unknown) => {
+    const e = entry as { label?: string; percentage?: number }
+    return { label: e.label ?? "", percentage: e.percentage ?? "" }
+  })
+}
+
 function buildDefaults(editItem?: ContractItem): ContractItemFlatValues {
   if (!editItem) {
     return {
@@ -427,6 +552,7 @@ function buildDefaults(editItem?: ContractItem): ContractItemFlatValues {
       pricingTableId: "",
       totalAmount: "",
       installments: 2,
+      installmentPlan: null,
     }
   }
   return {
@@ -441,6 +567,7 @@ function buildDefaults(editItem?: ContractItem): ContractItemFlatValues {
     pricingTableId: editItem.pricingTableId ?? "",
     totalAmount: editItem.totalAmount?.toString() ?? "",
     installments: editItem.installments ?? 2,
+    installmentPlan: null, // se maneja aparte en planEntries state
   }
 }
 

@@ -284,9 +284,9 @@ export async function getPendingInstallmentsForContracts(
       if (!item.installments || !item.totalAmount || !item.billingDayOfMonth) continue
 
       const itemStart = item.startDate ?? contract.startDate
-      const perInstallment = new Prisma.Decimal(item.totalAmount.toString())
-        .div(item.installments)
-        .toDecimalPlaces(2)
+      const installmentPlan = Array.isArray(item.installmentPlan)
+        ? (item.installmentPlan as Array<{ label: string; percentage: number }>)
+        : null
       const milestoneLabels = Array.isArray(item.milestoneLabels)
         ? (item.milestoneLabels as string[])
         : null
@@ -310,14 +310,27 @@ export async function getPendingInstallmentsForContracts(
           issueDate: now,
         })
 
+        const planEntry = installmentPlan?.[k - 1] ?? null
+        const amount = planEntry
+          ? new Prisma.Decimal(item.totalAmount.toString())
+              .mul(new Prisma.Decimal(planEntry.percentage.toString()))
+              .div(100)
+              .toDecimalPlaces(2)
+              .toString()
+          : new Prisma.Decimal(item.totalAmount.toString())
+              .div(item.installments)
+              .toDecimalPlaces(2)
+              .toString()
+        const description = planEntry?.label ?? milestoneLabels?.[k - 1] ?? null
+
         result.push({
           contractId: contract.id,
           contractItemId: item.id,
           itemName: item.name,
           installmentNum: k,
           totalInstallments: item.installments,
-          description: milestoneLabels?.[k - 1] ?? null,
-          amount: perInstallment.toString(),
+          description,
+          amount,
           currency: contract.currency,
           dueDate: period.dueDate.toISOString(),
           breakdownNote: item.breakdownNote ?? null,

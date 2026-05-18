@@ -42,6 +42,11 @@ export const oneTimeItemSchema = z.object({
     .regex(moneyRegex, "Ingresá un monto válido (ej: 5000.00)"),
 })
 
+export const installmentPlanEntrySchema = z.object({
+  label: z.string().min(1, "El hito no puede estar vacío"),
+  percentage: z.number().min(0.01).max(100),
+})
+
 export const installmentItemSchema = z.object({
   ...commonFields,
   type: z.literal("INSTALLMENT"),
@@ -58,6 +63,7 @@ export const installmentItemSchema = z.object({
     .int()
     .min(1, "Mínimo día 1")
     .max(28, "Máximo día 28"),
+  installmentPlan: z.array(installmentPlanEntrySchema).nullable().optional(),
 })
 
 export const contractItemSchema = z.discriminatedUnion("type", [
@@ -82,6 +88,7 @@ export const contractItemFlatSchema = z.object({
   pricingTableId: z.string().optional(),
   totalAmount: z.string().optional(),
   installments: z.number().optional(),
+  installmentPlan: z.array(installmentPlanEntrySchema).nullable().optional(),
 })
 
 export type ContractItemFlatValues = z.infer<typeof contractItemFlatSchema>

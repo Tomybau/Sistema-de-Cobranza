@@ -304,13 +304,31 @@ export async function generateInstallmentsDirect(
       issueDate: now,
     })
 
-    const perInstallment = new Prisma.Decimal(item.totalAmount.toString())
-      .div(item.installments)
-      .toDecimalPlaces(2)
-
+    const installmentPlan = Array.isArray(item.installmentPlan)
+      ? (item.installmentPlan as unknown as InstallmentPlanEntry[])
+      : null
     const milestoneLabels = Array.isArray(item.milestoneLabels)
       ? (item.milestoneLabels as string[])
       : null
+
+    const planEntry = installmentPlan?.[installmentNum - 1] ?? null
+    let amount: string
+    let description: string | null
+
+    if (planEntry) {
+      amount = new Prisma.Decimal(item.totalAmount.toString())
+        .mul(new Prisma.Decimal(planEntry.percentage.toString()))
+        .div(100)
+        .toDecimalPlaces(2)
+        .toString()
+      description = planEntry.label
+    } else {
+      amount = new Prisma.Decimal(item.totalAmount.toString())
+        .div(item.installments)
+        .toDecimalPlaces(2)
+        .toString()
+      description = milestoneLabels?.[installmentNum - 1] ?? null
+    }
 
     toInsert.push({
       ticketNumber,
@@ -319,8 +337,8 @@ export async function generateInstallmentsDirect(
       periodEnd: period.periodEnd,
       issueDate: period.issueDate,
       dueDate: period.dueDate,
-      amount: perInstallment.toString(),
-      description: milestoneLabels?.[installmentNum - 1] ?? null,
+      amount,
+      description,
       breakdownNote: item.breakdownNote ?? null,
       installmentNum,
     })
