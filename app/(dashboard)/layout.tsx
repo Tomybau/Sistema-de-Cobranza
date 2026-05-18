@@ -7,6 +7,8 @@ import { CommandPalette } from "@/components/layout/command-palette"
 import { KeyboardShortcuts } from "@/components/layout/keyboard-shortcuts"
 import { SearchTrigger } from "@/components/layout/search-trigger"
 import { Toaster } from "@/components/ui/sonner"
+import { NotificationBell } from "@/components/layout/notification-bell"
+import { listNotifications, countUnreadNotifications } from "@/domain/notifications/queries"
 
 export default async function DashboardLayout({
   children,
@@ -15,6 +17,11 @@ export default async function DashboardLayout({
 }) {
   const session = await auth()
   if (!session?.user) redirect("/login")
+
+  const [notifications, unreadCount] = await Promise.all([
+    listNotifications(30),
+    countUnreadNotifications(),
+  ])
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -31,6 +38,19 @@ export default async function DashboardLayout({
           <div className="flex-1" />
 
           <SearchTrigger />
+
+          <NotificationBell
+            initialNotifications={notifications.map((n) => ({
+              id: n.id,
+              type: n.type,
+              title: n.title,
+              body: n.body,
+              link: n.link,
+              isRead: n.isRead,
+              createdAt: n.createdAt,
+            }))}
+            unreadCount={unreadCount}
+          />
 
           <UserMenu
             name={session.user.name ?? "Admin"}

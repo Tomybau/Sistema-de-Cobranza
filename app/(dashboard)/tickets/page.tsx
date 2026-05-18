@@ -5,6 +5,7 @@ import { listAllBillingTickets } from "@/domain/billing/queries"
 import { TicketsTable } from "@/components/billing/tickets-table"
 import { ExportCsvButton } from "@/components/shared/export-csv-button"
 import { exportTicketsCsv } from "@/app/actions/export"
+import { GenerateAllDialog } from "@/components/billing/generate-all-dialog"
 
 export const metadata: Metadata = {
   title: "Tickets | Sistema de Cobranza",
@@ -22,7 +23,10 @@ export default async function TicketsPage() {
             Todos los tickets generados en el sistema.
           </p>
         </div>
-        <ExportCsvButton action={exportTicketsCsv} />
+        <div className="flex items-center gap-2">
+          <ExportCsvButton action={exportTicketsCsv} />
+          <GenerateAllDialog />
+        </div>
       </div>
       <TicketsTable data={tickets} />
     </div>

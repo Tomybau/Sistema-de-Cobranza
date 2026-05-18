@@ -1,5 +1,9 @@
 import { prisma } from "@/db/client"
+import { Prisma } from "@prisma/client"
+import { addMonths } from "date-fns"
 import type { BillingTicketStatus } from "@prisma/client"
+import { generateTicketNumber } from "./ticket-number"
+import { computeTicketPeriod } from "./calculate"
 
 export async function listBillingTicketsByContract(contractId: string) {
   const rows = await prisma.billingTicket.findMany({
@@ -213,3 +217,115 @@ export async function getBillingTicketById(id: string) {
 export type BillingTicketDetail = NonNullable<
   Awaited<ReturnType<typeof getBillingTicketById>>
 >
+
+// ─── getPendingInstallmentsForContracts ──────────────────────────────────────
+
+export interface PendingInstallmentDraft {
+  contractId: string
+  contractItemId: string
+  itemName: string
+  installmentNum: number
+  totalInstallments: number
+  description: string | null
+  amount: string
+  currency: string
+  dueDate: string
+  breakdownNote: string | null
+  ticketNumber: string
+}
+
+/**
+ * Devuelve todas las cuotas de tipo INSTALLMENT que aún no tienen ticket generado
+ * (status != CANCELLED), para todos los contratos activos (o un subconjunto).
+ */
+export async function getPendingInstallmentsForContracts(
+  contractIds?: string[]
+): Promise<PendingInstallmentDraft[]> {
+  const contracts = await prisma.contract.findMany({
+    where: {
+      ...(contractIds ? { id: { in: contractIds } } : {}),
+      status: "ACTIVE",
+      deletedAt: null,
+    },
+    include: {
+      items: {
+        where: { type: "INSTALLMENT", isActive: true },
+      },
+    },
+  })
+
+  const contractIdsToQuery = contracts.map((c) => c.id)
+  if (contractIdsToQuery.length === 0) return []
+
+  // Batch: todos los tickets existentes de estos contratos
+  const existingTickets = await prisma.billingTicket.findMany({
+    where: {
+      contractId: { in: contractIdsToQuery },
+      status: { not: "CANCELLED" },
+    },
+    select: { ticketNumber: true, contractId: true },
+  })
+
+  const existingByContract = new Map<string, Set<string>>()
+  for (const t of existingTickets) {
+    if (!existingByContract.has(t.contractId)) {
+      existingByContract.set(t.contractId, new Set())
+    }
+    existingByContract.get(t.contractId)!.add(t.ticketNumber)
+  }
+
+  const result: PendingInstallmentDraft[] = []
+  const now = new Date()
+
+  for (const contract of contracts) {
+    const existing = existingByContract.get(contract.id) ?? new Set()
+
+    for (const item of contract.items) {
+      if (!item.installments || !item.totalAmount || !item.billingDayOfMonth) continue
+
+      const itemStart = item.startDate ?? contract.startDate
+      const perInstallment = new Prisma.Decimal(item.totalAmount.toString())
+        .div(item.installments)
+        .toDecimalPlaces(2)
+      const milestoneLabels = Array.isArray(item.milestoneLabels)
+        ? (item.milestoneLabels as string[])
+        : null
+
+      for (let k = 1; k <= item.installments; k++) {
+        const periodDate = addMonths(itemStart, k - 1)
+        const ticketNumber = generateTicketNumber(
+          contract.contractNumber,
+          periodDate,
+          "INSTALLMENT",
+          item.id,
+          k
+        )
+
+        if (existing.has(ticketNumber)) continue
+
+        const period = computeTicketPeriod({
+          billingDayOfMonth: item.billingDayOfMonth,
+          paymentTermsDays: contract.paymentTermsDays,
+          periodDate,
+          issueDate: now,
+        })
+
+        result.push({
+          contractId: contract.id,
+          contractItemId: item.id,
+          itemName: item.name,
+          installmentNum: k,
+          totalInstallments: item.installments,
+          description: milestoneLabels?.[k - 1] ?? null,
+          amount: perInstallment.toString(),
+          currency: contract.currency,
+          dueDate: period.dueDate.toISOString(),
+          breakdownNote: item.breakdownNote ?? null,
+          ticketNumber,
+        })
+      }
+    }
+  }
+
+  return result
+}
