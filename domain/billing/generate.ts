@@ -1,8 +1,10 @@
 import { prisma } from "@/db/client"
 import { Prisma } from "@prisma/client"
+import { addMonths } from "date-fns"
 import { createAuditLog } from "@/domain/audit"
-import { calculateTicketsForContract, calculateVariableAmount } from "./calculate"
+import { calculateTicketsForContract, calculateVariableAmount, computeTicketPeriod } from "./calculate"
 import { getExistingTicketRefs } from "./queries"
+import { generateTicketNumber } from "./ticket-number"
 import type { BillingContractItem, BillingPricingTable, TicketDraft } from "./types"
 
 export interface GenerateResult {
@@ -220,6 +222,150 @@ export async function generateBillingTickets(
     })),
     skipped,
   }
+}
+
+// ─── generateInstallmentsDirect ──────────────────────────────────────────────
+
+export interface InstallmentSelection {
+  contractItemId: string
+  installmentNum: number
+}
+
+/**
+ * Genera tickets de cuotas (INSTALLMENT) específicos seleccionados por el usuario.
+ * No depende del período mensual — calcula la fecha a partir del installmentNum.
+ * Idempotente: si el ticket ya existe, lo omite.
+ */
+export async function generateInstallmentsDirect(
+  contractId: string,
+  selections: InstallmentSelection[],
+  userId?: string
+): Promise<{ inserted: number; skipped: number }> {
+  if (selections.length === 0) return { inserted: 0, skipped: 0 }
+
+  const contract = await prisma.contract.findFirst({
+    where: { id: contractId, deletedAt: null },
+    include: {
+      items: {
+        where: {
+          id: { in: selections.map((s) => s.contractItemId) },
+          type: "INSTALLMENT",
+          isActive: true,
+        },
+      },
+    },
+  })
+
+  if (!contract) throw new Error("Contrato no encontrado o eliminado.")
+
+  const existingRefs = await getExistingTicketRefs(contractId)
+  const existingNumbers = new Set(existingRefs.map((r) => r.ticketNumber))
+
+  const toInsert: Array<{
+    ticketNumber: string
+    contractItemId: string
+    periodStart: Date
+    periodEnd: Date
+    issueDate: Date
+    dueDate: Date
+    amount: string
+    description: string | null
+    breakdownNote: string | null
+    installmentNum: number
+  }> = []
+
+  const now = new Date()
+
+  for (const sel of selections) {
+    const item = contract.items.find((i) => i.id === sel.contractItemId)
+    if (!item || !item.installments || !item.totalAmount || !item.billingDayOfMonth) continue
+
+    const { installmentNum } = sel
+    if (installmentNum < 1 || installmentNum > item.installments) continue
+
+    const itemStart = item.startDate ?? contract.startDate
+    const periodDate = addMonths(itemStart, installmentNum - 1)
+
+    const ticketNumber = generateTicketNumber(
+      contract.contractNumber,
+      periodDate,
+      "INSTALLMENT",
+      item.id,
+      installmentNum
+    )
+
+    if (existingNumbers.has(ticketNumber)) continue
+
+    const period = computeTicketPeriod({
+      billingDayOfMonth: item.billingDayOfMonth,
+      paymentTermsDays: contract.paymentTermsDays,
+      periodDate,
+      issueDate: now,
+    })
+
+    const perInstallment = new Prisma.Decimal(item.totalAmount.toString())
+      .div(item.installments)
+      .toDecimalPlaces(2)
+
+    const milestoneLabels = Array.isArray(item.milestoneLabels)
+      ? (item.milestoneLabels as string[])
+      : null
+
+    toInsert.push({
+      ticketNumber,
+      contractItemId: item.id,
+      periodStart: period.periodStart,
+      periodEnd: period.periodEnd,
+      issueDate: period.issueDate,
+      dueDate: period.dueDate,
+      amount: perInstallment.toString(),
+      description: milestoneLabels?.[installmentNum - 1] ?? null,
+      breakdownNote: item.breakdownNote ?? null,
+      installmentNum,
+    })
+  }
+
+  if (toInsert.length > 0) {
+    await prisma.$transaction(async (tx) => {
+      for (const draft of toInsert) {
+        const ticket = await tx.billingTicket.create({
+          data: {
+            ticketNumber: draft.ticketNumber,
+            contractId,
+            contractItemId: draft.contractItemId,
+            periodStart: draft.periodStart,
+            periodEnd: draft.periodEnd,
+            issueDate: draft.issueDate,
+            dueDate: draft.dueDate,
+            amount: new Prisma.Decimal(draft.amount),
+            currency: contract.currency,
+            description: draft.description,
+            breakdownNote: draft.breakdownNote,
+            status: "PENDING",
+          },
+        })
+
+        await createAuditLog(tx as Parameters<typeof createAuditLog>[0], {
+          userId,
+          action: "ticket.create",
+          entityType: "BillingTicket",
+          entityId: ticket.id,
+          afterData: {
+            ticketNumber: ticket.ticketNumber,
+            contractId,
+            contractItemId: draft.contractItemId,
+            type: "INSTALLMENT",
+            installmentNum: draft.installmentNum,
+            amount: draft.amount,
+            dueDate: draft.dueDate,
+          },
+        })
+      }
+    })
+  }
+
+  const skipped = selections.length - toInsert.length
+  return { inserted: toInsert.length, skipped }
 }
 
 /**

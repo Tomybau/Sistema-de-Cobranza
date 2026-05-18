@@ -216,6 +216,12 @@ model ContractItem {
   isActive  Boolean   @default(true)
   startDate DateTime?
   endDate   DateTime?
+
+  // Automatización de generación
+  autoGenerate       Boolean @default(false) // RECURRING_FIXED: genera ticket automáticamente cada mes
+  reminderEnabled    Boolean @default(false) // avisa cuando hay que generar manualmente
+  reminderDayOfMonth Int?                    // día del mes para el recordatorio (1-28)
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -503,6 +509,32 @@ enum OcrStatus {
   PROCESSING
   DONE
   FAILED
+}
+
+// =============================================================================
+// NOTIFICACIONES IN-APP
+// =============================================================================
+
+model Notification {
+  id             String           @id @default(cuid())
+  type           NotificationType
+  title          String
+  body           String?
+  link           String?          // ruta interna a navegar al hacer clic
+  contractId     String?
+  contractItemId String?
+  isRead         Boolean          @default(false)
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  BILLING_REMINDER      // recordatorio de generar ticket manual
+  AUTO_GENERATED        // ticket generado automáticamente por el cron
+  AUTO_GENERATE_ERROR   // error al generar ticket automático
 }
 
 // =============================================================================
