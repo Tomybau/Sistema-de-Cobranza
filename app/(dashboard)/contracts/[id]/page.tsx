@@ -79,13 +79,12 @@ export default async function ContractDetailPage({ params }: Props) {
   const { year: defaultYear, month: defaultMonth } = currentBillingPeriod()
 
   // Stats derivadas de los tickets
-  const totalBilled = tickets.reduce(
-    (sum, t) => sum + (Number(t.amount) || 0),
-    0
-  )
-  const totalPaid = tickets
-    .filter((t) => t.status === "PAID")
+  const totalBilled = tickets
+    .filter((t) => t.status !== "CANCELLED")
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+  const totalPaid = tickets
+    .filter((t) => t.status !== "CANCELLED")
+    .reduce((sum, t) => sum + (Number(t.paidAmount) || 0), 0)
   const overdue = tickets.filter((t) => t.status === "OVERDUE").length
   const pending = tickets.filter(
     (t) => t.status === "PENDING" || t.status === "SENT"

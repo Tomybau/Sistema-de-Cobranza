@@ -151,7 +151,7 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
           clientId,
           grossAmount: parsedGrossAmt.toString(),
           method: method as PaymentMethod,
-          paymentDate: new Date(paymentDate),
+          paymentDate: new Date(`${paymentDate}T12:00:00`),
           reference: reference || undefined,
           notes: notes || undefined,
           allocations: finalAllocations,
