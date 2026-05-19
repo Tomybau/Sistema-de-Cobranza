@@ -66,7 +66,9 @@ export async function createPaymentAction(
     
     revalidatePath("/payments")
     revalidatePath("/tickets") // depending on which ticket pages show payment statuses
-    
+    revalidatePath("/dashboard")
+    revalidatePath("/contracts", "layout")
+
     // Also revalidate specific company/client if necessary
     if (input.companyId) {
       revalidatePath(`/companies/${input.companyId}`)
@@ -102,6 +104,8 @@ export async function cancelPaymentAction(
     revalidatePath("/payments")
     revalidatePath(`/payments/${paymentId}`)
     revalidatePath("/tickets")
+    revalidatePath("/dashboard")
+    revalidatePath("/contracts", "layout")
 
     return { success: true }
   } catch (error) {

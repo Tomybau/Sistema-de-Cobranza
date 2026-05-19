@@ -167,7 +167,7 @@ export function PaymentForm({ clients, onSuccess, embedded }: PaymentFormProps) 
           clientId,
           grossAmount: totalAllocated.toFixed(2),
           method: method as PaymentMethod,
-          paymentDate: new Date(paymentDate),
+          paymentDate: new Date(`${paymentDate}T12:00:00`),
           reference: reference || undefined,
           notes: notes || undefined,
           allocations: finalAllocations,
