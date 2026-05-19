@@ -168,7 +168,6 @@ model Contract {
   items             ContractItem[]
   billingTickets    BillingTicket[]
   documents         Document[]
-  pricingTables     PricingTable[]
   contractDocuments ContractDocument[]
 
   @@index([companyId])
@@ -193,9 +192,6 @@ model ContractItem {
 
   // Para items fijos
   fixedAmount Decimal? @db.Decimal(12, 2)
-
-  // Para items variables (referencia a una pricing table)
-  pricingTableId String?
 
   // Para items one-time o installment
   totalAmount     Decimal? @db.Decimal(12, 2)
@@ -227,7 +223,7 @@ model ContractItem {
   updatedAt DateTime  @updatedAt
 
   contract       Contract        @relation(fields: [contractId], references: [id])
-  pricingTable   PricingTable?   @relation(fields: [pricingTableId], references: [id])
+  pricingTable   PricingTable?
   billingTickets BillingTicket[]
 
   @@index([contractId])
@@ -242,16 +238,15 @@ enum ContractItemType {
 }
 
 model PricingTable {
-  id          String   @id @default(cuid())
-  contractId  String?
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  contractItemId String   @unique
+  name           String
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  contract Contract?     @relation(fields: [contractId], references: [id])
-  tiers    PricingTier[]
-  items    ContractItem[]
+  contractItem ContractItem  @relation(fields: [contractItemId], references: [id], onDelete: Cascade)
+  tiers        PricingTier[]
 }
 
 model PricingTier {

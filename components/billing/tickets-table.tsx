@@ -70,12 +70,41 @@ interface TicketsTableProps {
   data: BillingTicketSummary[]
 }
 
+function formatQty(qty: string): string {
+  const n = parseFloat(qty)
+  if (Number.isNaN(n)) return qty
+  return n.toLocaleString("es-AR", { maximumFractionDigits: 4 })
+}
+
 export function TicketsTable({ data }: TicketsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "dueDate", desc: false }])
-  const [ticketFilter, setTicketFilter] = useState("")
+  const [textFilter, setTextFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
+  const [companyFilter, setCompanyFilter] = useState("")
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [isSendingBulk, setIsSendingBulk] = useState(false)
+
+  const companies = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const t of data) {
+      map.set(t.companyId, t.companyName)
+    }
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]))
+  }, [data])
+
+  const filteredData = useMemo(() => {
+    const q = textFilter.trim().toLowerCase()
+    return data.filter((t) => {
+      if (companyFilter && t.companyId !== companyFilter) return false
+      if (statusFilter && t.status !== statusFilter) return false
+      if (!q) return true
+      return (
+        t.ticketNumber.toLowerCase().includes(q) ||
+        t.itemName.toLowerCase().includes(q) ||
+        t.companyName.toLowerCase().includes(q)
+      )
+    })
+  }, [data, textFilter, companyFilter, statusFilter])
 
   const columns = useMemo<ColumnDef<BillingTicketSummary>[]>(
     () => [
@@ -159,9 +188,16 @@ export function TicketsTable({ data }: TicketsTableProps) {
         accessorKey: "amount",
         header: () => <span className="block text-right">Monto</span>,
         cell: ({ row }) => (
-          <span className="block text-right num font-medium text-sm">
-            {formatMoney(row.getValue("amount"), row.original.currency)}
-          </span>
+          <div className="text-right">
+            <span className="block num font-medium text-sm">
+              {formatMoney(row.getValue("amount"), row.original.currency)}
+            </span>
+            {row.original.variableQuantity && (
+              <span className="block text-[10px] text-muted-foreground tabular-nums">
+                qty: {formatQty(row.original.variableQuantity)}
+              </span>
+            )}
+          </div>
         ),
       },
       {
@@ -198,7 +234,7 @@ export function TicketsTable({ data }: TicketsTableProps) {
   )
 
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     state: { sorting, rowSelection },
     onSortingChange: setSorting,
@@ -208,20 +244,6 @@ export function TicketsTable({ data }: TicketsTableProps) {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
   })
-
-  const ticketCol = table.getColumn("ticketNumber")
-  const statusCol = table.getColumn("status")
-
-  const handleTicketFilterChange = (value: string) => {
-    setTicketFilter(value)
-    ticketCol?.setFilterValue(value || undefined)
-  }
-
-  const handleStatusFilterChange = (value: string | null) => {
-    const v = value ?? ""
-    setStatusFilter(v)
-    statusCol?.setFilterValue(v || undefined)
-  }
 
   const selectedRows = table.getSelectedRowModel().rows
   const selectedCount = selectedRows.length
@@ -246,12 +268,25 @@ export function TicketsTable({ data }: TicketsTableProps) {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <Input
-          placeholder="Buscar número de ticket..."
-          value={ticketFilter}
-          onChange={(e) => handleTicketFilterChange(e.target.value)}
+          placeholder="Buscar ticket, item o empresa…"
+          value={textFilter}
+          onChange={(e) => setTextFilter(e.target.value)}
           className="max-w-xs"
         />
-        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+        <Select value={companyFilter} onValueChange={(v) => setCompanyFilter(v ?? "")}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Todas las empresas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todas</SelectItem>
+            {companies.map(([id, name]) => (
+              <SelectItem key={id} value={id} label={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "")}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Todos los estados" />
           </SelectTrigger>
@@ -304,7 +339,7 @@ export function TicketsTable({ data }: TicketsTableProps) {
                   colSpan={columns.length}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  {ticketFilter || statusFilter
+                  {textFilter || statusFilter || companyFilter
                     ? "No hay resultados para esos filtros."
                     : "No hay tickets generados."}
                 </TableCell>

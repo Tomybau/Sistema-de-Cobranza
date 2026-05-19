@@ -189,13 +189,7 @@ function ContractSection({
               <div key={draft.ticketNumber} className="flex items-start gap-2 px-3 py-2.5">
                 <Checkbox
                   checked={isSelected}
-                  disabled={isVariable && !quantity.trim()}
-                  onCheckedChange={(v) => {
-                    if (!isVariable || quantity.trim()) {
-                      onToggleDraft(draft.contractItemId)
-                    }
-                    void v
-                  }}
+                  onCheckedChange={() => onToggleDraft(draft.contractItemId)}
                   className="mt-0.5"
                 />
                 <div className="flex-1 min-w-0">
@@ -508,7 +502,7 @@ export function GenerateAllDialog() {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
+      <Button onClick={() => setOpen(true)} data-tour="generate-all">
         <Ticket className="mr-2 h-4 w-4" />
         Generar tickets
       </Button>

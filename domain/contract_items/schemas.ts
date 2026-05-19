@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 const moneyRegex = /^\d+(\.\d{1,2})?$/
+const quantityRegex = /^\d+(\.\d{1,4})?$/
 
 const commonFields = {
   name: z.string().min(1, "El nombre es obligatorio"),
@@ -9,6 +10,48 @@ const commonFields = {
   startDate: z.string().optional(),
   endDate: z.string().optional(),
 }
+
+export const pricingTierInputSchema = z
+  .object({
+    id: z.string().optional(),
+    fromQuantity: z.string().regex(quantityRegex, "Cantidad inválida"),
+    toQuantity: z
+      .string()
+      .regex(quantityRegex, "Cantidad inválida")
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+    unitPrice: z.string().regex(quantityRegex, "Precio inválido"),
+    flatFee: z
+      .string()
+      .regex(quantityRegex, "Fee inválido")
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+  })
+  .refine((v) => {
+    if (v.toQuantity !== undefined) {
+      return Number(v.fromQuantity) < Number(v.toQuantity)
+    }
+    return true
+  }, { message: "'Hasta' debe ser mayor a 'Desde'", path: ["toQuantity"] })
+
+export type PricingTierInput = z.infer<typeof pricingTierInputSchema>
+
+const tiersArraySchema = z
+  .array(pricingTierInputSchema)
+  .min(1, "Debe definir al menos un rango")
+  .refine((tiers) => {
+    let prevTo: number | undefined
+    for (let i = 0; i < tiers.length; i++) {
+      const from = Number(tiers[i].fromQuantity)
+      const to = tiers[i].toQuantity !== undefined ? Number(tiers[i].toQuantity) : undefined
+      if (i > 0) {
+        if (prevTo === undefined) return false
+        if (from < prevTo) return false
+      }
+      prevTo = to
+    }
+    return true
+  }, "Los rangos deben estar en orden ascendente y sin superponerse")
 
 export const recurringFixedItemSchema = z.object({
   ...commonFields,
@@ -26,7 +69,8 @@ export const recurringFixedItemSchema = z.object({
 export const recurringVariableItemSchema = z.object({
   ...commonFields,
   type: z.literal("RECURRING_VARIABLE"),
-  pricingTableId: z.string().min(1, "Seleccioná una tabla de precios"),
+  pricingTableName: z.string().optional(),
+  pricingTiers: tiersArraySchema,
   billingDayOfMonth: z.coerce
     .number()
     .int()
@@ -85,7 +129,8 @@ export const contractItemFlatSchema = z.object({
   endDate: z.string().optional(),
   fixedAmount: z.string().optional(),
   billingDayOfMonth: z.number().optional(),
-  pricingTableId: z.string().optional(),
+  pricingTableName: z.string().optional(),
+  pricingTiers: z.array(pricingTierInputSchema).optional(),
   totalAmount: z.string().optional(),
   installments: z.number().optional(),
   installmentPlan: z.array(installmentPlanEntrySchema).nullable().optional(),

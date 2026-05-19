@@ -32,7 +32,11 @@ export async function getContractById(id: string) {
       company: { select: { id: true, legalName: true, tradeName: true } },
       items: {
         include: {
-          pricingTable: { select: { id: true, name: true } },
+          pricingTable: {
+            include: {
+              tiers: { orderBy: { fromQuantity: "asc" } },
+            },
+          },
         },
         orderBy: { createdAt: "asc" },
       },
@@ -46,6 +50,20 @@ export async function getContractById(id: string) {
       ...item,
       fixedAmount: item.fixedAmount?.toString() ?? null,
       totalAmount: item.totalAmount?.toString() ?? null,
+      pricingTable: item.pricingTable
+        ? {
+            id: item.pricingTable.id,
+            name: item.pricingTable.name,
+            description: item.pricingTable.description,
+            tiers: item.pricingTable.tiers.map((t) => ({
+              id: t.id,
+              fromQuantity: t.fromQuantity.toString(),
+              toQuantity: t.toQuantity?.toString() ?? null,
+              unitPrice: t.unitPrice.toString(),
+              flatFee: t.flatFee?.toString() ?? null,
+            })),
+          }
+        : null,
     })),
   }
 }

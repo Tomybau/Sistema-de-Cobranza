@@ -8,6 +8,8 @@ import { KeyboardShortcuts } from "@/components/layout/keyboard-shortcuts"
 import { SearchTrigger } from "@/components/layout/search-trigger"
 import { Toaster } from "@/components/ui/sonner"
 import { NotificationBell } from "@/components/layout/notification-bell"
+import { TourProvider } from "@/components/onboarding/tour-provider"
+import { HelpButton } from "@/components/onboarding/help-button"
 import { listNotifications, countUnreadNotifications } from "@/domain/notifications/queries"
 
 export default async function DashboardLayout({
@@ -67,6 +69,8 @@ export default async function DashboardLayout({
       <Toaster richColors position="bottom-right" />
       <CommandPalette />
       <KeyboardShortcuts />
+      <TourProvider />
+      <HelpButton />
     </div>
   )
 }
