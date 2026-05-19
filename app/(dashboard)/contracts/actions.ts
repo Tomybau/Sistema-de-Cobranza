@@ -167,35 +167,15 @@ export async function createContractFullAction(
         },
       })
 
-      // 4. Crear ítems + pricing tables
+      // 4. Crear ítems + pricing tables (1:1 con item)
       for (const item of input.items) {
-        let pricingTableId: string | null = null
-
         if (item.type === "RECURRING_VARIABLE") {
-          if (!item.newPricingTableName?.trim()) {
-            throw new Error(`El ítem "${item.name}" requiere nombre de tabla de precios`)
-          }
           if (!item.newPricingTableTiers?.length) {
             throw new Error(`La tabla de precios de "${item.name}" necesita al menos un rango`)
           }
-          const pt = await tx.pricingTable.create({
-            data: {
-              name: item.newPricingTableName.trim(),
-              contractId: contract.id,
-              tiers: {
-                create: item.newPricingTableTiers.map((t) => ({
-                  fromQuantity: toDecimal(t.from),
-                  toQuantity: t.to?.trim() ? toDecimal(t.to) : null,
-                  unitPrice: toDecimal(t.unitPrice),
-                  flatFee: t.flatFee?.trim() ? toDecimal(t.flatFee) : null,
-                })),
-              },
-            },
-          })
-          pricingTableId = pt.id
         }
 
-        await tx.contractItem.create({
+        const createdItem = await tx.contractItem.create({
           data: {
             contractId: contract.id,
             type: item.type,
@@ -204,7 +184,6 @@ export async function createContractFullAction(
             isActive: true,
             fixedAmount: item.fixedAmount?.trim() ? toDecimal(item.fixedAmount) : null,
             billingDayOfMonth: item.billingDayOfMonth ?? null,
-            pricingTableId,
             totalAmount: item.totalAmount?.trim() ? toDecimal(item.totalAmount) : null,
             installments: item.installments ?? null,
             milestoneLabels: item.milestoneLabels?.length ? item.milestoneLabels : undefined,
@@ -215,6 +194,23 @@ export async function createContractFullAction(
             durationMonths: item.durationMonths ?? null,
           },
         })
+
+        if (item.type === "RECURRING_VARIABLE" && item.newPricingTableTiers?.length) {
+          await tx.pricingTable.create({
+            data: {
+              contractItem: { connect: { id: createdItem.id } },
+              name: item.newPricingTableName?.trim() || `Tabla — ${item.name}`,
+              tiers: {
+                create: item.newPricingTableTiers.map((t) => ({
+                  fromQuantity: toDecimal(t.from),
+                  toQuantity: t.to?.trim() ? toDecimal(t.to) : null,
+                  unitPrice: toDecimal(t.unitPrice),
+                  flatFee: t.flatFee?.trim() ? toDecimal(t.flatFee) : null,
+                })),
+              },
+            },
+          })
+        }
       }
 
       // 5. Vincular documento OCR

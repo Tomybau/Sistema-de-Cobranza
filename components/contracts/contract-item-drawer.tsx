@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2 } from "lucide-react"
+import { Loader2, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -42,6 +42,13 @@ interface PlanEntry {
   percentage: number | ""
 }
 
+interface TierEntry {
+  fromQuantity: string
+  toQuantity: string
+  unitPrice: string
+  flatFee: string
+}
+
 const TYPE_LABELS = {
   RECURRING_FIXED: "Recurrente — monto fijo",
   RECURRING_VARIABLE: "Recurrente — tabla de precios",
@@ -51,7 +58,6 @@ const TYPE_LABELS = {
 
 interface ContractItemDrawerProps {
   contractId: string
-  pricingTables: { id: string; name: string }[]
   editItem?: ContractItem
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -59,7 +65,6 @@ interface ContractItemDrawerProps {
 
 export function ContractItemDrawer({
   contractId,
-  pricingTables,
   editItem,
   open,
   onOpenChange,
@@ -69,6 +74,8 @@ export function ContractItemDrawer({
 
   const [customPlanEnabled, setCustomPlanEnabled] = useState(false)
   const [planEntries, setPlanEntries] = useState<PlanEntry[]>([])
+  const [tiers, setTiers] = useState<TierEntry[]>([])
+  const [pricingTableName, setPricingTableName] = useState<string>("")
 
   const {
     register,
@@ -97,6 +104,8 @@ export function ContractItemDrawer({
       setCustomPlanEnabled(false)
       setPlanEntries([])
     }
+    setTiers(getExistingTiers(editItem))
+    setPricingTableName(editItem?.pricingTable?.name ?? "")
   }, [editItem, reset])
 
   // Resize plan entries when installments count changes
@@ -115,12 +124,17 @@ export function ContractItemDrawer({
     })
   }, [watchedInstallments, customPlanEnabled])
 
-  // When enabling custom plan, initialize entries
+  // When type changes to VARIABLE, initialize one empty tier if empty
+  useEffect(() => {
+    if (itemType === "RECURRING_VARIABLE" && tiers.length === 0) {
+      setTiers([{ fromQuantity: "0", toQuantity: "", unitPrice: "0", flatFee: "" }])
+    }
+  }, [itemType, tiers.length])
+
   function handleToggleCustomPlan(enabled: boolean) {
     setCustomPlanEnabled(enabled)
     if (enabled) {
       const n = Math.max(2, Math.min(60, Number(watchedInstallments) || 2))
-      // Keep existing entries or create blanks
       setPlanEntries((prev) =>
         prev.length === n
           ? prev
@@ -139,14 +153,28 @@ export function ContractItemDrawer({
     )
   }
 
-  // Suma de porcentajes (solo los numéricos)
+  function updateTier(index: number, field: keyof TierEntry, value: string) {
+    setTiers((prev) => prev.map((t, i) => (i === index ? { ...t, [field]: value } : t)))
+  }
+
+  function addTier() {
+    setTiers((prev) => [...prev, { fromQuantity: "", toQuantity: "", unitPrice: "", flatFee: "" }])
+  }
+
+  function removeTier(index: number) {
+    setTiers((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)))
+  }
+
   const sumPercentages = planEntries.reduce(
     (acc, e) => acc + (typeof e.percentage === "number" ? e.percentage : 0),
     0
   )
   const planValid = !customPlanEnabled || (sumPercentages === 100 && planEntries.every((e) => e.label.trim()))
 
-  // Monto calculado por cuota dado un porcentaje
+  const tiersValid =
+    itemType !== "RECURRING_VARIABLE" ||
+    (tiers.length > 0 && tiers.every((t) => t.fromQuantity !== "" && t.unitPrice !== ""))
+
   function calcAmount(pct: number | ""): string {
     const total = parseFloat(watchedTotalAmount)
     if (!total || typeof pct !== "number" || pct <= 0) return "—"
@@ -158,9 +186,23 @@ export function ContractItemDrawer({
       toast.error("La suma de porcentajes debe ser 100% y todos los hitos deben tener nombre.")
       return
     }
+    if (!tiersValid) {
+      toast.error("Completá los rangos de la tabla de precios.")
+      return
+    }
 
     const finalValues: ContractItemFlatValues = {
       ...values,
+      pricingTableName: pricingTableName.trim() || undefined,
+      pricingTiers:
+        values.type === "RECURRING_VARIABLE"
+          ? tiers.map((t) => ({
+              fromQuantity: t.fromQuantity,
+              toQuantity: t.toQuantity === "" ? undefined : t.toQuantity,
+              unitPrice: t.unitPrice,
+              flatFee: t.flatFee === "" ? undefined : t.flatFee,
+            }))
+          : undefined,
       installmentPlan:
         customPlanEnabled && planEntries.length > 0
           ? planEntries.map((e) => ({ label: e.label, percentage: Number(e.percentage) }))
@@ -183,14 +225,18 @@ export function ContractItemDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md overflow-y-auto">
-        <SheetHeader>
+      <SheetContent className="sm:max-w-lg flex flex-col p-0">
+        <SheetHeader className="px-6 py-4 border-b">
           <SheetTitle>
             {isEditing ? "Editar item" : "Agregar item al contrato"}
           </SheetTitle>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4 pr-1">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex flex-col flex-1 min-h-0"
+        >
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {/* Tipo */}
           <div className="space-y-2">
             <Label>
@@ -288,36 +334,88 @@ export function ContractItemDrawer({
           {itemType === "RECURRING_VARIABLE" && (
             <>
               <div className="space-y-2">
-                <Label>
-                  Tabla de precios <span className="text-destructive">*</span>
+                <Label htmlFor="pricingTableName">
+                  Nombre de la tabla (opcional)
                 </Label>
-                <Select
-                  defaultValue={editItem?.pricingTableId ?? ""}
-                  onValueChange={(v) => v != null && setValue("pricingTableId", v)}
+                <Input
+                  id="pricingTableName"
+                  placeholder={`Tabla — ${watch("name") || "este item"}`}
+                  value={pricingTableName}
+                  onChange={(e) => setPricingTableName(e.target.value)}
                   disabled={isPending}
-                  items={Object.fromEntries(pricingTables.map((pt) => [pt.id, pt.name]))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccioná una tabla" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pricingTables.map((pt) => (
-                      <SelectItem key={pt.id} value={pt.id} label={pt.name}>
-                        {pt.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {pricingTables.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    No hay tablas para este contrato.{" "}
-                    <a href={`/pricing-tables/new?contractId=${contractId}`} className="underline">
-                      Crear tabla de precios
-                    </a>
-                    .
-                  </p>
-                )}
+                />
               </div>
+
+              <div className="space-y-2 rounded-md border p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Rangos de precio <span className="text-destructive">*</span>
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isPending}
+                    onClick={addTier}
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Rango
+                  </Button>
+                </div>
+                <div className="grid grid-cols-[1fr_1fr_1fr_1fr_2rem] gap-2 text-xs text-muted-foreground pb-1">
+                  <span>Desde</span>
+                  <span>Hasta</span>
+                  <span>Precio unit.</span>
+                  <span>Fee fijo</span>
+                  <span />
+                </div>
+                {tiers.map((tier, idx) => (
+                  <div
+                    key={idx}
+                    className="grid grid-cols-[1fr_1fr_1fr_1fr_2rem] gap-2 items-center"
+                  >
+                    <Input
+                      placeholder="0"
+                      value={tier.fromQuantity}
+                      onChange={(e) => updateTier(idx, "fromQuantity", e.target.value)}
+                      disabled={isPending}
+                      className="h-8 text-sm"
+                    />
+                    <Input
+                      placeholder="∞"
+                      value={tier.toQuantity}
+                      onChange={(e) => updateTier(idx, "toQuantity", e.target.value)}
+                      disabled={isPending}
+                      className="h-8 text-sm"
+                    />
+                    <Input
+                      placeholder="0.00"
+                      value={tier.unitPrice}
+                      onChange={(e) => updateTier(idx, "unitPrice", e.target.value)}
+                      disabled={isPending}
+                      className="h-8 text-sm"
+                    />
+                    <Input
+                      placeholder="0.00"
+                      value={tier.flatFee}
+                      onChange={(e) => updateTier(idx, "flatFee", e.target.value)}
+                      disabled={isPending}
+                      className="h-8 text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={isPending || tiers.length === 1}
+                      onClick={() => removeTier(idx)}
+                      className="h-8 w-8 shrink-0"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="billingDayOfMonth-var">
                   Día de facturación (1-28) <span className="text-destructive">*</span>
@@ -402,7 +500,6 @@ export function ContractItemDrawer({
                 />
               </div>
 
-              {/* Toggle cuotas personalizadas */}
               <div className="flex items-center gap-2 pt-1">
                 <Checkbox
                   id="custom-plan"
@@ -415,7 +512,6 @@ export function ContractItemDrawer({
                 </Label>
               </div>
 
-              {/* Plan de cuotas */}
               {customPlanEnabled && planEntries.length > 0 && (
                 <div className="space-y-2 rounded-md border p-3">
                   <div className="grid grid-cols-[1fr_20px_72px_auto] gap-x-2 items-center mb-1">
@@ -452,7 +548,6 @@ export function ContractItemDrawer({
                     </div>
                   ))}
 
-                  {/* Total */}
                   <div className="flex items-center justify-between pt-2 border-t mt-2">
                     <span className="text-xs text-muted-foreground">Total porcentaje</span>
                     <span
@@ -477,13 +572,16 @@ export function ContractItemDrawer({
           {/* Fechas opcionales */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="item-startDate">Inicio (opt.)</Label>
+              <Label htmlFor="item-startDate">Primera facturación (opt.)</Label>
               <Input
                 id="item-startDate"
                 type="date"
                 disabled={isPending}
                 {...register("startDate")}
               />
+              <p className="text-xs text-muted-foreground">
+                Si el contrato cubre los primeros meses, poné acá cuándo empieza a generarse este ítem.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="item-endDate">Fin (opt.)</Label>
@@ -506,9 +604,10 @@ export function ContractItemDrawer({
             />
             <Label htmlFor="item-isActive">Activo</Label>
           </div>
+          </div>
 
-          <div className="flex gap-3 pt-2">
-            <Button type="submit" disabled={isPending || !planValid}>
+          <div className="flex gap-3 px-6 py-4 border-t bg-background">
+            <Button type="submit" disabled={isPending || !planValid || !tiersValid}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditing ? "Guardar cambios" : "Agregar item"}
             </Button>
@@ -531,13 +630,22 @@ export function ContractItemDrawer({
 
 function getExistingPlan(item?: ContractItem): PlanEntry[] | null {
   if (!item) return null
-  // installmentPlan es Json? en Prisma — puede ser any
   const plan = (item as { installmentPlan?: unknown }).installmentPlan
   if (!Array.isArray(plan) || plan.length === 0) return null
   return plan.map((entry: unknown) => {
     const e = entry as { label?: string; percentage?: number }
     return { label: e.label ?? "", percentage: e.percentage ?? "" }
   })
+}
+
+function getExistingTiers(item?: ContractItem): TierEntry[] {
+  if (!item?.pricingTable?.tiers?.length) return []
+  return item.pricingTable.tiers.map((t) => ({
+    fromQuantity: t.fromQuantity,
+    toQuantity: t.toQuantity ?? "",
+    unitPrice: t.unitPrice,
+    flatFee: t.flatFee ?? "",
+  }))
 }
 
 function buildDefaults(editItem?: ContractItem): ContractItemFlatValues {
@@ -551,7 +659,8 @@ function buildDefaults(editItem?: ContractItem): ContractItemFlatValues {
       endDate: "",
       fixedAmount: "",
       billingDayOfMonth: 1,
-      pricingTableId: "",
+      pricingTableName: "",
+      pricingTiers: undefined,
       totalAmount: "",
       installments: 2,
       installmentPlan: null,
@@ -566,10 +675,11 @@ function buildDefaults(editItem?: ContractItem): ContractItemFlatValues {
     endDate: toDateInput(editItem.endDate),
     fixedAmount: editItem.fixedAmount?.toString() ?? "",
     billingDayOfMonth: editItem.billingDayOfMonth ?? 1,
-    pricingTableId: editItem.pricingTableId ?? "",
+    pricingTableName: editItem.pricingTable?.name ?? "",
+    pricingTiers: undefined,
     totalAmount: editItem.totalAmount?.toString() ?? "",
     installments: editItem.installments ?? 2,
-    installmentPlan: null, // se maneja aparte en planEntries state
+    installmentPlan: null,
   }
 }
 

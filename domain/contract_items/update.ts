@@ -1,6 +1,6 @@
 import { prisma } from "@/db/client"
 import { Prisma } from "@prisma/client"
-import { contractItemSchema, type ContractItemFormValues } from "./schemas"
+import { contractItemSchema, type ContractItemFormValues, type PricingTierInput } from "./schemas"
 import { toDecimal } from "@/lib/money"
 import { createAuditLog } from "@/domain/audit"
 
@@ -11,11 +11,13 @@ export class ContractItemNotFoundError extends Error {
   }
 }
 
-export class PricingTableNotFoundError extends Error {
-  constructor() {
-    super("La tabla de precios seleccionada no existe.")
-    this.name = "PricingTableNotFoundError"
-  }
+function tiersCreateData(tiers: PricingTierInput[]) {
+  return tiers.map((t) => ({
+    fromQuantity: toDecimal(t.fromQuantity),
+    toQuantity: t.toQuantity ? toDecimal(t.toQuantity) : null,
+    unitPrice: toDecimal(t.unitPrice),
+    flatFee: t.flatFee ? toDecimal(t.flatFee) : null,
+  }))
 }
 
 export async function updateContractItem(
@@ -25,18 +27,14 @@ export async function updateContractItem(
 ) {
   const parsed = contractItemSchema.parse(data)
 
-  const existing = await prisma.contractItem.findUnique({ where: { id } })
+  const existing = await prisma.contractItem.findUnique({
+    where: { id },
+    include: { pricingTable: true },
+  })
   if (!existing) throw new ContractItemNotFoundError()
 
   if (parsed.type !== existing.type) {
     throw new Error("No se puede cambiar el tipo de un item existente.")
-  }
-
-  if (parsed.type === "RECURRING_VARIABLE") {
-    const pt = await prisma.pricingTable.findUnique({
-      where: { id: parsed.pricingTableId },
-    })
-    if (!pt) throw new PricingTableNotFoundError()
   }
 
   const startDate =
@@ -46,37 +44,62 @@ export async function updateContractItem(
   const endDate =
     parsed.endDate && parsed.endDate !== "" ? new Date(parsed.endDate) : null
 
-  const updated = await prisma.contractItem.update({
-    where: { id },
-    data: {
-      name: parsed.name,
-      description: parsed.description ?? null,
-      isActive: parsed.isActive,
-      startDate,
-      endDate,
-      fixedAmount:
-        parsed.type === "RECURRING_FIXED"
-          ? toDecimal(parsed.fixedAmount)
-          : null,
-      billingDayOfMonth:
-        parsed.type === "RECURRING_FIXED" ||
-        parsed.type === "RECURRING_VARIABLE" ||
-        parsed.type === "INSTALLMENT"
-          ? parsed.billingDayOfMonth
-          : null,
-      pricingTableId:
-        parsed.type === "RECURRING_VARIABLE" ? parsed.pricingTableId : null,
-      totalAmount:
-        parsed.type === "ONE_TIME" || parsed.type === "INSTALLMENT"
-          ? toDecimal(parsed.totalAmount)
-          : null,
-      installments:
-        parsed.type === "INSTALLMENT" ? parsed.installments : null,
-      installmentPlan:
-        parsed.type === "INSTALLMENT"
-          ? (parsed.installmentPlan?.length ? parsed.installmentPlan : Prisma.JsonNull)
-          : undefined,
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.contractItem.update({
+      where: { id },
+      data: {
+        name: parsed.name,
+        description: parsed.description ?? null,
+        isActive: parsed.isActive,
+        startDate,
+        endDate,
+        fixedAmount:
+          parsed.type === "RECURRING_FIXED"
+            ? toDecimal(parsed.fixedAmount)
+            : null,
+        billingDayOfMonth:
+          parsed.type === "RECURRING_FIXED" ||
+          parsed.type === "RECURRING_VARIABLE" ||
+          parsed.type === "INSTALLMENT"
+            ? parsed.billingDayOfMonth
+            : null,
+        totalAmount:
+          parsed.type === "ONE_TIME" || parsed.type === "INSTALLMENT"
+            ? toDecimal(parsed.totalAmount)
+            : null,
+        installments:
+          parsed.type === "INSTALLMENT" ? parsed.installments : null,
+        installmentPlan:
+          parsed.type === "INSTALLMENT"
+            ? (parsed.installmentPlan?.length ? parsed.installmentPlan : Prisma.JsonNull)
+            : undefined,
+      },
+    })
+
+    if (parsed.type === "RECURRING_VARIABLE") {
+      const tableName = parsed.pricingTableName?.trim() || `Tabla — ${parsed.name}`
+      if (existing.pricingTable) {
+        // borrar tiers viejos y recrear
+        await tx.pricingTier.deleteMany({ where: { pricingTableId: existing.pricingTable.id } })
+        await tx.pricingTable.update({
+          where: { id: existing.pricingTable.id },
+          data: {
+            name: tableName,
+            tiers: { create: tiersCreateData(parsed.pricingTiers) },
+          },
+        })
+      } else {
+        await tx.pricingTable.create({
+          data: {
+            contractItem: { connect: { id } },
+            name: tableName,
+            tiers: { create: tiersCreateData(parsed.pricingTiers) },
+          },
+        })
+      }
+    }
+
+    return result
   })
 
   await createAuditLog(prisma, {

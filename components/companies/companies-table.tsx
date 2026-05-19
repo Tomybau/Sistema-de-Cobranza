@@ -27,17 +27,18 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import type { CompanyListItem } from "@/domain/companies/queries"
+import type { CompanyWithKpis } from "@/domain/companies/queries"
+import { formatMoney } from "@/lib/money"
 
 interface CompaniesTableProps {
-  data: CompanyListItem[]
+  data: CompanyWithKpis[]
 }
 
 export function CompaniesTable({ data }: CompaniesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState("")
 
-  const columns = useMemo<ColumnDef<CompanyListItem>[]>(
+  const columns = useMemo<ColumnDef<CompanyWithKpis>[]>(
     () => [
       {
         accessorKey: "legalName",
@@ -83,29 +84,54 @@ export function CompaniesTable({ data }: CompaniesTableProps) {
         ),
       },
       {
-        id: "clientsCount",
-        header: "Contactos",
-        accessorFn: (row) => row._count.clients,
-        cell: ({ getValue }) => (
-          <Badge variant="secondary">{String(getValue())}</Badge>
+        id: "contractsCount",
+        header: "Contratos",
+        accessorFn: (row) => row._count.contracts,
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {row.original._count.contracts} · {row.original._count.clients} contacto
+            {row.original._count.clients !== 1 ? "s" : ""}
+          </span>
         ),
       },
       {
-        id: "contractsCount",
-        header: "Contratos activos",
-        accessorFn: (row) => row._count.contracts,
-        cell: ({ getValue }) => {
-          const count = getValue() as number
-          return (
-            <Badge variant={count > 0 ? "ok" : "outline"}>{count}</Badge>
-          )
-        },
+        id: "totalBilled",
+        header: () => <span className="block text-right">Facturado</span>,
+        accessorFn: (row) => row.kpis.totalBilled,
+        cell: ({ row }) => (
+          <span className="block text-right text-sm tabular-nums">
+            {formatMoney(row.original.kpis.totalBilled, "USD")}
+          </span>
+        ),
       },
       {
-        accessorKey: "createdAt",
-        header: "Creada",
-        cell: ({ getValue }) =>
-          format(new Date(getValue() as string), "dd MMM yyyy", { locale: es }),
+        id: "totalCollected",
+        header: () => <span className="block text-right">Cobrado</span>,
+        accessorFn: (row) => row.kpis.totalCollected,
+        cell: ({ row }) => (
+          <span className="block text-right text-sm tabular-nums text-ok">
+            {formatMoney(row.original.kpis.totalCollected, "USD")}
+          </span>
+        ),
+      },
+      {
+        id: "overdueAmount",
+        header: () => <span className="block text-right">Mora</span>,
+        accessorFn: (row) => row.kpis.overdueAmount,
+        cell: ({ row }) => {
+          const k = row.original.kpis
+          if (k.overdueCount === 0) {
+            return <span className="block text-right text-sm text-muted-foreground">—</span>
+          }
+          return (
+            <span className="block text-right text-sm tabular-nums text-bad">
+              {formatMoney(k.overdueAmount, "USD")}
+              <span className="block text-[10px] font-normal">
+                {k.overdueCount} ticket{k.overdueCount !== 1 ? "s" : ""}
+              </span>
+            </span>
+          )
+        },
       },
     ],
     []

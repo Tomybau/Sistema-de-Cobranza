@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 import { Button } from "@/components/ui/button"
 import { CompaniesTable } from "@/components/companies/companies-table"
-import { listCompanies } from "@/domain/companies/queries"
+import { listCompaniesWithKpis } from "@/domain/companies/queries"
 
 export const metadata: Metadata = {
   title: "Empresas | Sistema de Cobranza",
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 }
 
 export default async function CompaniesPage() {
-  const companies = await listCompanies()
+  const companies = await listCompaniesWithKpis()
 
   return (
     <div className="p-6 space-y-6">

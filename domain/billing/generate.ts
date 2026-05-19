@@ -78,7 +78,7 @@ export async function generateBillingTickets(
       type: item.type,
       name: item.name,
       fixedAmount: item.fixedAmount?.toString() ?? null,
-      pricingTableId: item.pricingTableId ?? null,
+      pricingTableId: item.pricingTable?.id ?? null,
       pricingTable,
       totalAmount: item.totalAmount?.toString() ?? null,
       installments: item.installments ?? null,
@@ -447,7 +447,7 @@ export async function previewBillingTickets(
     type: item.type,
     name: item.name,
     fixedAmount: item.fixedAmount?.toString() ?? null,
-    pricingTableId: item.pricingTableId ?? null,
+    pricingTableId: item.pricingTable?.id ?? null,
     pricingTable: item.pricingTable
       ? {
           id: item.pricingTable.id,
