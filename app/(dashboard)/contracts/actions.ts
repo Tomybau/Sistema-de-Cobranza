@@ -182,15 +182,16 @@ export async function createContractFullAction(
             data: {
               name: item.newPricingTableName.trim(),
               contractId: contract.id,
-              tiers: {
-                create: item.newPricingTableTiers.map((t) => ({
-                  fromQuantity: toDecimal(t.from),
-                  toQuantity: t.to?.trim() ? toDecimal(t.to) : null,
-                  unitPrice: toDecimal(t.unitPrice),
-                  flatFee: t.flatFee?.trim() ? toDecimal(t.flatFee) : null,
-                })),
-              },
             },
+          })
+          await tx.pricingTier.createMany({
+            data: item.newPricingTableTiers.map((t) => ({
+              pricingTableId: pt.id,
+              fromQuantity: toDecimal(t.from),
+              toQuantity: t.to?.trim() ? toDecimal(t.to) : null,
+              unitPrice: toDecimal(t.unitPrice),
+              flatFee: t.flatFee?.trim() ? toDecimal(t.flatFee) : null,
+            })),
           })
           pricingTableId = pt.id
         }

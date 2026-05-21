@@ -1,7 +1,14 @@
-import Anthropic from "@anthropic-ai/sdk"
-import { ocrContractResultSchema, type OcrContractResult } from "./schemas"
+# Prompt de Extracción de Contratos
 
-const SYSTEM_PROMPT = `Sos un extractor experto de contratos comerciales de servicios SaaS / chatbot / software.
+Versión en uso en `domain/ocr/extract-contract.ts`.  
+Modelo: `claude-sonnet-4-6` · Max tokens: 8192
+
+---
+
+## SYSTEM_PROMPT
+
+```
+Sos un extractor experto de contratos comerciales de servicios SaaS / chatbot / software.
 Devolvés ÚNICAMENTE un JSON válido — sin markdown, sin texto adicional, sin explicaciones fuera del JSON.
 
 Estructura de salida:
@@ -204,152 +211,22 @@ REGLAS GENERALES
 - lateFeePct: porcentaje numérico. "2% mensual" → 2.
 - paymentTermsDays: "30 días desde presentación de factura" → 30. "primeros 5 días del mes" → null (no es un plazo desde emisión).
 - currency: "USD"/"US$"/"dólares estadounidenses" → "USD". "balboas"/"B/." → "PAB". "lempiras"/"L." → "HNL". "pesos argentinos" → "ARS". "pesos mexicanos" → "MXN".
-- confidence: HIGH si todo claro, MEDIUM si algunos campos dudosos, LOW si hay ambigüedades importantes.`
+- confidence: HIGH si todo claro, MEDIUM si algunos campos dudosos, LOW si hay ambigüedades importantes.
+```
 
-const SUPPORTED_IMAGE_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-] as const
+---
 
-type SupportedImageType = (typeof SUPPORTED_IMAGE_TYPES)[number]
+## Historial de cambios
 
-function isImageType(mime: string): mime is SupportedImageType {
-  return SUPPORTED_IMAGE_TYPES.includes(mime as SupportedImageType)
-}
+| Versión | Fecha      | Cambio |
+|---------|------------|--------|
+| 1.0     | 2026-04-18 | Initial — extracción básica de cliente, contrato e ítems |
+| 1.1     | 2026-04-29 | Session 10: `taxIdType`, `signatoryName/Id`, `billingContact`, `milestoneLabels`, `breakdownNote`, `coContractors`, `contractNumber`, `signatureDate` |
+| 1.2     | 2026-05-18 | Session 11: reemplaza `milestoneLabels` con `installmentPlan [{label, percentage}]`; refuerza regla de `billingContact` para contratos multi-empresa |
 
-let client: Anthropic | null = null
+## Notas para mejorar el prompt
 
-function getClient(): Anthropic {
-  if (!client) {
-    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  }
-  return client
-}
-
-const MODEL = "claude-sonnet-4-6"
-
-function fallbackResult(notes?: string): OcrContractResult {
-  return {
-    client: {
-      name: "Desconocido",
-      email: null,
-      phone: null,
-      taxId: null,
-      taxIdType: null,
-      address: null,
-      signatoryName: null,
-      signatoryId: null,
-      billingContact: null,
-    },
-    contract: {
-      name: "Contrato importado",
-      contractNumber: null,
-      startDate: null,
-      endDate: null,
-      signatureDate: null,
-      billingCycle: null,
-      currency: null,
-      lateFeePct: null,
-      paymentTermsDays: null,
-      jurisdiction: null,
-      notes: notes ?? null,
-    },
-    items: [],
-    overagePricingTable: null,
-    coContractors: null,
-    confidence: "LOW",
-  }
-}
-
-export async function extractContractFromFile(
-  buffer: Buffer,
-  mimeType: string
-): Promise<OcrContractResult> {
-  const base64 = buffer.toString("base64")
-  const anthropic = getClient()
-
-  let response: Anthropic.Messages.Message
-
-  if (mimeType === "application/pdf") {
-    response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 8192,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "document",
-              source: { type: "base64", media_type: "application/pdf", data: base64 },
-            },
-            { type: "text", text: "Extrae los datos de este contrato siguiendo el schema." },
-          ],
-        },
-      ],
-    })
-  } else if (isImageType(mimeType)) {
-    response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 8192,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: mimeType, data: base64 },
-            },
-            { type: "text", text: "Extrae los datos de este contrato siguiendo el schema." },
-          ],
-        },
-      ],
-    })
-  } else {
-    throw new Error(`Tipo de archivo no soportado para OCR: ${mimeType}`)
-  }
-
-  const textBlock = response.content.find((b) => b.type === "text")
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("Claude no devolvió texto en la respuesta")
-  }
-
-  const raw = textBlock.text
-    .trim()
-    .replace(/^```json?\n?/, "")
-    .replace(/\n?```$/, "")
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return fallbackResult(raw.slice(0, 500))
-  }
-
-  const result = ocrContractResultSchema.safeParse(parsed)
-  if (!result.success) {
-    const partial = parsed as Record<string, unknown>
-    const fb = fallbackResult()
-    const partialClient = (partial?.client as Record<string, unknown>) ?? {}
-    const partialContract = (partial?.contract as Record<string, unknown>) ?? {}
-    return {
-      ...fb,
-      client: {
-        ...fb.client,
-        name: typeof partialClient.name === "string" ? partialClient.name : fb.client.name,
-      },
-      contract: {
-        ...fb.contract,
-        name:
-          typeof partialContract.name === "string"
-            ? partialContract.name
-            : fb.contract.name,
-      },
-    }
-  }
-
-  return result.data
-}
+- Si el OCR falla en extraer el `billingContact` correctamente, revisar si la sección "A LAS CONTRATANTES:" está siendo leída completa.
+- Si `taxId` aparece truncado, puede ser que el número esté en una tabla de dos columnas y el OCR no lo lee completo — agregar ejemplos adicionales al prompt.
+- Si `installmentPlan` da porcentajes incorrectos, puede haber ambigüedad entre "% del total" y "% por período" — agregar contexto al contrato problemático en el prompt.
+- Para futuros contratos en nuevos países, agregar el tipo de `taxIdType` correspondiente en la sección de reglas del cliente.

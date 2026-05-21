@@ -182,21 +182,22 @@ export function ContractForm({
     const cl = ocrData.client
     const filled = new Set<string>()
 
+    // ── Empresa ───────────────────────────────────────────────────────────────
     if (cl.name) {
       setNewCompany((p) => ({ ...p, legalName: cl.name }))
-      setNewClient((p) => ({ ...p, fullName: cl.name }))
       filled.add("company.name")
-      filled.add("client.name")
     }
     if (cl.taxId) {
       setNewCompany((p) => ({ ...p, taxId: cl.taxId! }))
       filled.add("company.taxId")
     }
+    if (cl.taxIdType) {
+      setNewCompany((p) => ({ ...p, taxIdType: cl.taxIdType! }))
+      filled.add("company.taxIdType")
+    }
     if (cl.email) {
       setNewCompany((p) => ({ ...p, email: cl.email! }))
-      setNewClient((p) => ({ ...p, email: cl.email! }))
       filled.add("company.email")
-      filled.add("client.email")
     }
     if (cl.phone) {
       setNewCompany((p) => ({ ...p, phone: cl.phone! }))
@@ -205,6 +206,33 @@ export function ContractForm({
     if (cl.address) {
       setNewCompany((p) => ({ ...p, address: cl.address! }))
       filled.add("company.address")
+    }
+
+    // ── Contacto principal ────────────────────────────────────────────────────
+    // Prioridad: billingContact > signatoryName > dejar vacío (no usar razón social)
+    const bc = cl.billingContact
+    const personName  = bc?.name  || cl.signatoryName || ""
+    const personEmail = bc?.email || cl.email         || ""
+    const personPhone = bc?.phone || cl.phone         || ""
+
+    if (personName) {
+      setNewClient((p) => ({ ...p, fullName: personName }))
+      filled.add("client.name")
+    }
+    if (personEmail) {
+      setNewClient((p) => ({ ...p, email: personEmail }))
+      filled.add("client.email")
+    }
+    if (personPhone) {
+      setNewClient((p) => ({ ...p, phone: personPhone }))
+      filled.add("client.phone")
+    }
+
+    // clientType automático según la fuente del dato
+    if (bc?.name) {
+      setNewClient((p) => ({ ...p, clientType: "BILLING_CONTACT" }))
+    } else if (cl.signatoryName) {
+      setNewClient((p) => ({ ...p, clientType: "LEGAL_REP" }))
     }
 
     setOcrFields((prev) => new Set([...prev, ...filled]))
