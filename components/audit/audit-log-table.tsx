@@ -27,7 +27,7 @@ const ENTITY_ROUTES: Record<string, string | null> = {
   Payment: "/payments",
   EmailTemplate: "/email-templates",
   EmailLog: null,
-  PricingTable: "/pricing-tables",
+  PricingTable: null,
 }
 
 // Dot color per action verb

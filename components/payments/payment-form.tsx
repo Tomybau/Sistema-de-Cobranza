@@ -6,7 +6,6 @@ import { getClientTicketsAction, createPaymentAction } from "@/app/actions/payme
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -14,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -39,29 +39,28 @@ type TicketItem = Awaited<ReturnType<typeof getClientTicketsAction>>["tickets"][
 interface PaymentFormProps {
   clients: ClientOption[]
   onSuccess?: () => void
+  embedded?: boolean
 }
 
-export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
+export function PaymentForm({ clients, onSuccess, embedded }: PaymentFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [isLoadingTickets, setIsLoadingTickets] = useState(false)
-  
-  // Basic Form State
+
   const [clientId, setClientId] = useState("")
-  const [companyId, setCompanyId] = useState("") 
-  const [grossAmount, setGrossAmount] = useState("")
+  const [companyId, setCompanyId] = useState("")
   const [method, setMethod] = useState<PaymentMethod | "">("")
   const [reference, setReference] = useState("")
   const [notes, setNotes] = useState("")
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split("T")[0])
 
-  // Tickets & Allocations State
   const [tickets, setTickets] = useState<TicketItem[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [allocations, setAllocations] = useState<Record<string, string>>({})
 
-  // Attachment state
   const [attachment, setAttachment] = useState<File | null>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
+  const [clientSearch, setClientSearch] = useState("")
 
   const handleClientChange = async (selectedClientId: string | null) => {
     const validId = selectedClientId ?? ""
@@ -69,6 +68,7 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
     if (!validId) {
       setTickets([])
       setAllocations({})
+      setSelectedIds(new Set())
       return
     }
 
@@ -77,11 +77,9 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
       const data = await getClientTicketsAction(validId)
       setCompanyId(data.companyId)
       setTickets(data.tickets)
-      
-      // Auto-allocate logic could be added here, but starting empty:
       setAllocations({})
-      
-    } catch (e) {
+      setSelectedIds(new Set())
+    } catch {
       toast.error("Error al cargar tickets del cliente")
       setTickets([])
       setAllocations({})
@@ -91,7 +89,7 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
   }
 
   const parseCurrencyInput = (val: string) => val.replace(/,/g, "")
-  
+
   const formatInputCurrency = (val: string) => {
     if (!val) return ""
     let clean = val.replace(/[^\d.]/g, "")
@@ -101,57 +99,75 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
     return parts.length > 1 ? `${integerPart}.${parts[1]}` : integerPart
   }
 
-  const handleAllocationChange = (ticketId: string, val: string) => {
-    setAllocations(prev => ({
-      ...prev,
-      [ticketId]: parseCurrencyInput(val)
-    }))
+  const remainingForTicket = (t: TicketItem): number => {
+    const amount = parseFloat(t.amount.toString())
+    const paid = parseFloat(t.paidAmount.toString())
+    return Math.max(0, amount - paid)
   }
 
-  // Derived totals
-  const totalAllocated = Object.values(allocations).reduce((acc, curr) => {
-    const parsed = parseFloat(curr)
-    return acc + (isNaN(parsed) ? 0 : parsed)
+  const toggleTicket = (t: TicketItem) => {
+    const id = t.id
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+    setAllocations((prev) => {
+      if (prev[id] !== undefined && selectedIds.has(id)) {
+        const copy = { ...prev }
+        delete copy[id]
+        return copy
+      }
+      return { ...prev, [id]: remainingForTicket(t).toFixed(2) }
+    })
+  }
+
+  const handleAllocationChange = (ticketId: string, val: string) => {
+    setAllocations((prev) => ({ ...prev, [ticketId]: parseCurrencyInput(val) }))
+  }
+
+  const totalAllocated = Array.from(selectedIds).reduce((acc, id) => {
+    const v = parseFloat(allocations[id] ?? "0")
+    return acc + (isNaN(v) ? 0 : v)
   }, 0)
 
-  const parsedGrossAmt = parseFloat(grossAmount)
-  const isGrossAmtValid = !isNaN(parsedGrossAmt) && parsedGrossAmt > 0
-  const isOverAllocated = isGrossAmtValid && totalAllocated > parsedGrossAmt
-  
-  // Calculate remaining unallocated from the gross amount
-  const remainingToAllocate = isGrossAmtValid ? Math.max(0, parsedGrossAmt - totalAllocated) : 0
+  const currency = tickets[0]?.currency ?? "USD"
 
   const onSubmit = () => {
-    if (!clientId) return toast.error("Seleccione un cliente")
-    if (!isGrossAmtValid) return toast.error("El monto total es requerido y debe ser > 0")
-    if (!method) return toast.error("Seleccione un método de pago")
-    if (!paymentDate) return toast.error("Seleccione una fecha")
-    
-    // Check total allocation balance
-    // allow under-allocated? Sometimes they don't apply the full payment to tickets immediately? 
-    // Wait, the prompt says "total amount allocated across tickets <= payment gross amount". It doesn't strictly say it MUST equal it.
-    if (isOverAllocated) return toast.error("El monto asignado supera al monto del cobro")
+    if (!clientId) return toast.error("Seleccioná un cliente")
+    if (!method) return toast.error("Seleccioná un método de pago")
+    if (!paymentDate) return toast.error("Seleccioná una fecha")
+    if (selectedIds.size === 0) return toast.error("Seleccioná al menos un ticket")
+    if (totalAllocated <= 0) return toast.error("El total asignado debe ser mayor a 0")
 
-    const finalAllocations = Object.entries(allocations)
-      .map(([id, amt]) => ({ ticketId: id, allocatedAmount: amt }))
-      .filter(a => {
-        const p = parseFloat(a.allocatedAmount)
-        return !isNaN(p) && p > 0
-      })
-      
-    if (finalAllocations.length === 0) {
-       // Wait, do they have to allocate *something*? 
-       // Often a payment can just be a credit on account if there's no allocations, but for now we'll allow 0 allocations or warn
+    // Validar que cada allocation no exceda el restante del ticket
+    for (const id of selectedIds) {
+      const t = tickets.find((x) => x.id === id)
+      if (!t) continue
+      const v = parseFloat(allocations[id] ?? "0")
+      if (isNaN(v) || v <= 0) return toast.error(`Monto inválido para ticket ${t.ticketNumber}`)
+      if (v > remainingForTicket(t)) {
+        return toast.error(`El monto de ${t.ticketNumber} supera lo que falta cobrar`)
+      }
     }
+
+    const finalAllocations = Array.from(selectedIds).map((id) => ({
+      ticketId: id,
+      allocatedAmount: allocations[id],
+    }))
 
     startTransition(async () => {
       const res = await createPaymentAction(
         {
           companyId,
           clientId,
-          grossAmount: parsedGrossAmt.toString(),
+          grossAmount: totalAllocated.toFixed(2),
           method: method as PaymentMethod,
-          paymentDate: new Date(paymentDate),
+          paymentDate: new Date(`${paymentDate}T12:00:00`),
           reference: reference || undefined,
           notes: notes || undefined,
           allocations: finalAllocations,
@@ -163,56 +179,57 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
         toast.error(res.error)
       } else {
         toast.success("Pago registrado correctamente")
-        if (onSuccess) {
-          onSuccess()
-        } else {
-          router.push("/payments")
-        }
+        if (onSuccess) onSuccess()
+        else router.push("/payments")
       }
     })
   }
 
-  const [clientSearch, setClientSearch] = useState("")
-  
-  const filteredClients = clients.filter(c => 
+  const filteredClients = clients.filter((c) =>
     c.name.toLowerCase().includes(clientSearch.toLowerCase())
   )
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Detalles del Pago</CardTitle>
-        <CardDescription>Cargue los datos del pago y asigne montos a los tickets correspondientes.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
+  const Wrapper = embedded ? "div" : Card
+  const Body = embedded ? "div" : CardContent
+  const Header = embedded ? "div" : CardHeader
+  const Footer = embedded ? "div" : CardFooter
+
+  const form = (
+    <>
+      {!embedded && (
+        <Header>
+          <CardTitle>Detalles del pago</CardTitle>
+        </Header>
+      )}
+      <Body className={embedded ? "space-y-6" : "space-y-6"}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2 sm:col-span-2">
             <Label>Cliente / Empresa</Label>
             <Select
               value={clientId}
               onValueChange={handleClientChange}
               items={Object.fromEntries(clients.map((c) => [c.id, c.name]))}
             >
-              <SelectTrigger className="h-auto whitespace-normal text-left">
-                <SelectValue placeholder="Seleccione un cliente..." />
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccioná un cliente…" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
-                <div 
+                <div
                   className="p-2 sticky top-0 bg-popover z-10 border-b"
                   onPointerDown={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 >
-                  <Input 
-                    placeholder="Escriba para filtrar por nombre..." 
+                  <Input
+                    placeholder="Filtrar por nombre…"
                     value={clientSearch}
                     onChange={(e) => setClientSearch(e.target.value)}
                     autoFocus
                   />
                 </div>
                 {filteredClients.length > 0 ? (
-                  filteredClients.map(c => (
-                    <SelectItem key={c.id} value={c.id} label={c.name} className="items-start py-2">
-                      <span className="leading-snug">{c.name}</span>
+                  filteredClients.map((c) => (
+                    <SelectItem key={c.id} value={c.id} label={c.name}>
+                      {c.name}
                     </SelectItem>
                   ))
                 ) : (
@@ -225,24 +242,20 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>Monto Total Recibido (Gross)</Label>
-            <Input 
-              type="text" 
-              placeholder="0.00" 
-              value={formatInputCurrency(grossAmount)}
-              onChange={(e) => setGrossAmount(parseCurrencyInput(e.target.value))}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Método de Pago</Label>
+            <Label>Método de pago</Label>
             <Select
               value={method}
               onValueChange={(v) => setMethod(v as PaymentMethod)}
-              items={{ BANK_TRANSFER: "Transferencia", CHECK: "Cheque", CASH: "Efectivo", CREDIT_CARD: "Tarjeta", OTHER: "Otro" }}
+              items={{
+                BANK_TRANSFER: "Transferencia",
+                CHECK: "Cheque",
+                CASH: "Efectivo",
+                CREDIT_CARD: "Tarjeta",
+                OTHER: "Otro",
+              }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Seleccione..." />
+                <SelectValue placeholder="Seleccioná…" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="BANK_TRANSFER" label="Transferencia">Transferencia</SelectItem>
@@ -255,105 +268,142 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label>Fecha de Pago</Label>
-            <Input 
-              type="date" 
+            <Label>Fecha de pago</Label>
+            <Input
+              type="date"
               value={paymentDate}
               onChange={(e) => setPaymentDate(e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Referencia (Opcional)</Label>
-            <Input 
-              placeholder="# Cheque o Tx" 
+            <Label>Referencia (opcional)</Label>
+            <Input
+              placeholder="# cheque o tx"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
             />
           </div>
 
-          <div className="space-y-2 md:col-span-2">
-            <Label>Notas (Opcional)</Label>
-            <Textarea 
-              placeholder="Observaciones..." 
+          <div className="space-y-2">
+            <Label>Adjunto (opcional, máx 5MB)</Label>
+            <input
+              ref={attachmentInputRef}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f && f.size > 5 * 1024 * 1024) {
+                  toast.error("El archivo supera 5MB")
+                  e.target.value = ""
+                  return
+                }
+                setAttachment(f ?? null)
+              }}
+            />
+            {attachment ? (
+              <div className="flex items-center gap-2 text-sm rounded-md border px-3 py-2 h-9">
+                <Paperclip className="h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate">{attachment.name}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttachment(null)
+                    if (attachmentInputRef.current) attachmentInputRef.current.value = ""
+                  }}
+                  className="shrink-0 hover:text-destructive"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => attachmentInputRef.current?.click()}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground rounded-md border border-dashed px-3 py-2 h-9 w-full"
+              >
+                <Paperclip className="h-4 w-4" />
+                Adjuntar comprobante
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Notas (opcional)</Label>
+            <Textarea
+              placeholder="Observaciones…"
+              rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
         </div>
 
-        {/* Tickets Allocation Table */}
         {clientId && (
-          <div className="space-y-4 pt-4 border-t">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium">Asignar a Tickets</h3>
+          <div className="space-y-3 pt-4 border-t">
+            <div className="flex justify-between items-center flex-wrap gap-2">
+              <h3 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                Tickets a cubrir con este pago
+              </h3>
               <div className="text-sm">
-                Recibido: <span className="font-semibold">{formatMoney(parsedGrossAmt || 0, "USD")}</span>
-                 {" | "}
-                Asignado: <span className={`font-semibold ${isOverAllocated ? 'text-destructive' : ''}`}>{formatMoney(totalAllocated, "USD")}</span>
-                 {" | "}
-                Restante: <span className="font-semibold">{formatMoney(remainingToAllocate, "USD")}</span>
+                Total asignado:{" "}
+                <span className="font-semibold tabular-nums">
+                  {formatMoney(totalAllocated, currency)}
+                </span>
               </div>
             </div>
 
             {isLoadingTickets ? (
-              <p className="text-sm text-muted-foreground">Cargando tickets...</p>
+              <p className="text-sm text-muted-foreground">Cargando tickets…</p>
             ) : tickets.length === 0 ? (
-              <p className="text-sm text-muted-foreground">El cliente no tiene tickets pendientes.</p>
+              <p className="text-sm text-muted-foreground">
+                Este cliente no tiene tickets pendientes.
+              </p>
             ) : (
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50">
-                      <th className="p-3 text-left font-medium">Ticket / Item</th>
-                      <th className="p-3 text-right font-medium">Original</th>
-                      <th className="p-3 text-right font-medium">Pagado</th>
-                      <th className="p-3 text-right font-medium">Restante</th>
-                      <th className="p-3 text-right font-medium">Asignar</th>
+                      <th className="w-10 p-2" />
+                      <th className="p-2 text-left font-medium">Ticket</th>
+                      <th className="p-2 text-right font-medium">Pendiente</th>
+                      <th className="p-2 text-right font-medium">Asignar</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {tickets.map(t => {
-                      const amount = parseFloat(t.amount.toString())
-                      const paid = parseFloat(t.paidAmount.toString())
-                      const remaining = amount - paid
-                      
+                    {tickets.map((t) => {
+                      const remaining = remainingForTicket(t)
+                      const isChecked = selectedIds.has(t.id)
                       return (
-                        <tr key={t.id} className="border-b last:border-0 hover:bg-muted/30">
-                          <td className="p-3">
-                            <div className="font-medium">{t.ticketNumber}</div>
-                            <div className="text-xs text-muted-foreground">{t.contractItem.name}</div>
-                            <div className="text-xs text-muted-foreground">Vcto: {format(new Date(t.dueDate), "dd MMM yyyy", { locale: es })}</div>
+                        <tr key={t.id} className="border-b last:border-0">
+                          <td className="p-2 text-center">
+                            <Checkbox
+                              checked={isChecked}
+                              onCheckedChange={() => toggleTicket(t)}
+                            />
                           </td>
-                          <td className="p-3 text-right">{formatMoney(amount, t.currency)}</td>
-                          <td className="p-3 text-right">{formatMoney(paid, t.currency)}</td>
-                          <td className="p-3 text-right font-medium">{formatMoney(remaining, t.currency)}</td>
-                          <td className="p-3 text-right">
-                            <Input 
-                              type="text" 
-                              className="w-28 ml-auto text-right"
+                          <td className="p-2">
+                            <div className="font-medium">{t.ticketNumber}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {t.contractItem.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Vcto: {format(new Date(t.dueDate), "dd MMM yyyy", { locale: es })}
+                            </div>
+                          </td>
+                          <td className="p-2 text-right tabular-nums">
+                            {formatMoney(remaining, t.currency)}
+                          </td>
+                          <td className="p-2 text-right">
+                            <Input
+                              type="text"
+                              className="w-28 ml-auto text-right h-8"
                               placeholder="0.00"
                               value={formatInputCurrency(allocations[t.id] ?? "")}
                               onChange={(e) => handleAllocationChange(t.id, e.target.value)}
+                              disabled={!isChecked}
                             />
-                            <div className="mt-1 flex justify-end gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-5 px-1.5 text-[10px]"
-                                onClick={() => {
-                                  // Asignar el total restante del ticket (o lo que quede del grossAmount)
-                                  if (remainingToAllocate > 0) {
-                                     const toAssign = Math.min(remaining, remainingToAllocate)
-                                     handleAllocationChange(t.id, toAssign.toFixed(2))
-                                  } else {
-                                     handleAllocationChange(t.id, remaining.toFixed(2))
-                                  }
-                                }}
-                              >
-                                Max
-                              </Button>
-                            </div>
                           </td>
                         </tr>
                       )
@@ -364,59 +414,22 @@ export function PaymentForm({ clients, onSuccess }: PaymentFormProps) {
             )}
           </div>
         )}
-      </CardContent>
-      {/* Attachment */}
-      <div className="px-6 pb-4">
-        <input
-          ref={attachmentInputRef}
-          type="file"
-          accept=".pdf,.png,.jpg,.jpeg"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f && f.size > 5 * 1024 * 1024) {
-              toast.error("El archivo supera el límite de 5MB")
-              e.target.value = ""
-              return
-            }
-            setAttachment(f ?? null)
-          }}
-        />
-        {attachment ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground rounded-md border px-3 py-2">
-            <Paperclip className="h-4 w-4 shrink-0" />
-            <span className="flex-1 truncate">{attachment.name}</span>
-            <button
-              type="button"
-              onClick={() => {
-                setAttachment(null)
-                if (attachmentInputRef.current) attachmentInputRef.current.value = ""
-              }}
-              className="shrink-0 hover:text-destructive"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => attachmentInputRef.current?.click()}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Paperclip className="h-4 w-4" />
-            Adjuntar comprobante (PDF, JPG, PNG — opcional, máx 5MB)
-          </button>
+      </Body>
+      <Footer className="flex justify-end gap-3">
+        {!embedded && (
+          <Button variant="outline" onClick={() => router.push("/payments")} disabled={isPending}>
+            Cancelar
+          </Button>
         )}
-      </div>
-
-      <CardFooter className="flex justify-end gap-3">
-        <Button variant="outline" onClick={() => router.push("/payments")} disabled={isPending}>
-          Cancelar
+        <Button
+          onClick={onSubmit}
+          disabled={isPending || !clientId || selectedIds.size === 0 || totalAllocated <= 0}
+        >
+          {isPending ? "Registrando…" : "Registrar pago"}
         </Button>
-        <Button onClick={onSubmit} disabled={isPending || isOverAllocated || !isGrossAmtValid || !clientId}>
-          {isPending ? "Registrando..." : "Registrar Pago"}
-        </Button>
-      </CardFooter>
-    </Card>
+      </Footer>
+    </>
   )
+
+  return embedded ? <div className="space-y-6">{form}</div> : <Wrapper>{form}</Wrapper>
 }

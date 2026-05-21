@@ -196,7 +196,7 @@ export function GenerateTicketsDialog({
 
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>
+      <Button size="sm" onClick={() => setOpen(true)} data-tour="generate-tickets">
         <Ticket className="mr-2 h-4 w-4" />
         Generar tickets
       </Button>
@@ -274,12 +274,7 @@ export function GenerateTicketsDialog({
                 <div key={draft.ticketNumber} className="flex items-start gap-2 text-sm">
                   <Checkbox
                     checked={isSelected}
-                    disabled={isVariable && !variableQuantities[draft.contractItemId]?.trim()}
-                    onCheckedChange={() => {
-                      if (!isVariable || variableQuantities[draft.contractItemId]?.trim()) {
-                        toggleItem(draft.contractItemId)
-                      }
-                    }}
+                    onCheckedChange={() => toggleItem(draft.contractItemId)}
                     className="mt-0.5 shrink-0"
                   />
                   <div className="flex-1 min-w-0">

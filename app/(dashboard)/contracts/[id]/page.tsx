@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { getContractById } from "@/domain/contracts/queries"
-import { listPricingTables } from "@/domain/pricing_tables/queries"
 import { listBillingTicketsByContract } from "@/domain/billing/queries"
 import { formatMoney } from "@/lib/money"
 import { currentBillingPeriod } from "@/lib/dates"
@@ -64,28 +63,21 @@ interface Props {
 
 export default async function ContractDetailPage({ params }: Props) {
   const { id } = await params
-  const [contract, pricingTablesRaw, tickets] = await Promise.all([
+  const [contract, tickets] = await Promise.all([
     getContractById(id),
-    listPricingTables({ contractId: id }),
     listBillingTicketsByContract(id),
   ])
   if (!contract) notFound()
 
-  const pricingTables = pricingTablesRaw.map((pt) => ({
-    id: pt.id,
-    name: pt.name,
-  }))
-
   const { year: defaultYear, month: defaultMonth } = currentBillingPeriod()
 
   // Stats derivadas de los tickets
-  const totalBilled = tickets.reduce(
-    (sum, t) => sum + (Number(t.amount) || 0),
-    0
-  )
-  const totalPaid = tickets
-    .filter((t) => t.status === "PAID")
+  const totalBilled = tickets
+    .filter((t) => t.status !== "CANCELLED")
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+  const totalPaid = tickets
+    .filter((t) => t.status !== "CANCELLED")
+    .reduce((sum, t) => sum + (Number(t.paidAmount) || 0), 0)
   const overdue = tickets.filter((t) => t.status === "OVERDUE").length
   const pending = tickets.filter(
     (t) => t.status === "PENDING" || t.status === "SENT"
@@ -218,7 +210,6 @@ export default async function ContractDetailPage({ params }: Props) {
         contractId={id}
         items={contract.items}
         currency={contract.currency}
-        pricingTables={pricingTables}
       />
 
       <Separator />

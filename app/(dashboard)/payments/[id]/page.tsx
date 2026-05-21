@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { CancelPaymentButton } from "@/components/payments/cancel-payment-button"
+import { ReceiptActions } from "@/components/payments/receipt-actions"
 import { Paperclip } from "lucide-react"
 
 export const metadata: Metadata = {
@@ -70,9 +71,12 @@ export default async function PaymentDetailPage({
             Empresa: <Link href={`/companies/${payment.companyId}`} className="hover:underline text-primary">{payment.company.legalName}</Link>
           </p>
         </div>
-        {payment.status === "PROCESSED" && (
-          <CancelPaymentButton paymentId={payment.id} />
-        )}
+        <div className="flex items-center gap-2">
+          <ReceiptActions paymentId={payment.id} />
+          {payment.status === "PROCESSED" && (
+            <CancelPaymentButton paymentId={payment.id} />
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

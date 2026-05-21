@@ -28,13 +28,13 @@ export function PaymentSheet({ clients }: PaymentSheetProps) {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
+      <Button onClick={() => setOpen(true)} data-tour="new-payment">
         <Plus className="mr-2 h-4 w-4" />
         Registrar pago
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
+        <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
           <SheetHeader className="px-6 py-4 border-b">
             <SheetTitle>Registrar pago</SheetTitle>
             <SheetDescription>
@@ -42,7 +42,7 @@ export function PaymentSheet({ clients }: PaymentSheetProps) {
             </SheetDescription>
           </SheetHeader>
           <div className="px-6 py-4">
-            <PaymentForm clients={clients} onSuccess={handleSuccess} />
+            <PaymentForm clients={clients} onSuccess={handleSuccess} embedded />
           </div>
         </SheetContent>
       </Sheet>

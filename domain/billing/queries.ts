@@ -25,6 +25,7 @@ export async function listBillingTicketsByContract(contractId: string) {
     issueDate: r.issueDate,
     dueDate: r.dueDate,
     amount: r.amount.toString(),
+    paidAmount: r.paidAmount.toString(),
     currency: r.currency,
     variableQuantity: r.variableQuantity?.toString() ?? null,
     status: r.status as BillingTicketStatus,
