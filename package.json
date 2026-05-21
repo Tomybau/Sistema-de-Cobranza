@@ -1,7 +1,6 @@
 {
   "name": "cobranza-system",
   "version": "0.5.0",
-  "version": "0.4.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
