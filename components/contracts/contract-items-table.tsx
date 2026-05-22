@@ -38,17 +38,13 @@ import {
   toggleContractItemActiveAction,
 } from "@/app/(dashboard)/contracts/[id]/actions"
 import { formatMoney } from "@/lib/money"
+import { ITEM_TYPE_LABELS } from "@/lib/item-type-labels"
 import type { ContractDetail } from "@/domain/contracts/queries"
 import { cn } from "@/lib/utils"
 
 type ContractItem = ContractDetail["items"][number]
 
-const TYPE_LABELS: Record<string, string> = {
-  RECURRING_FIXED: "Fijo",
-  RECURRING_VARIABLE: "Variable",
-  ONE_TIME: "Único",
-  INSTALLMENT: "Cuotas",
-}
+const TYPE_LABELS = ITEM_TYPE_LABELS
 
 const TYPE_COLORS: Record<
   string,

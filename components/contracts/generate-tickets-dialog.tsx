@@ -32,6 +32,7 @@ import {
   type PreviewResult,
 } from "@/app/(dashboard)/contracts/[id]/actions"
 import { formatMoney } from "@/lib/money"
+import { ITEM_TYPE_LABELS } from "@/lib/item-type-labels"
 import { cn } from "@/lib/utils"
 
 // ─── Cálculo de precio client-side (espeja calculateVariableAmount del server) ─
@@ -75,12 +76,7 @@ const MONTHS = [
   { value: 12, label: "Diciembre" },
 ]
 
-const TYPE_LABELS: Record<string, string> = {
-  RECURRING_FIXED: "Fijo",
-  RECURRING_VARIABLE: "Variable",
-  ONE_TIME: "Único",
-  INSTALLMENT: "Cuotas",
-}
+const TYPE_LABELS = ITEM_TYPE_LABELS
 
 const STATUS_BADGE: Record<string, "default" | "secondary" | "outline"> = {
   READY: "default",

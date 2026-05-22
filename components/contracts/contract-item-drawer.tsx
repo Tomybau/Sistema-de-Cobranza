@@ -32,6 +32,7 @@ import {
   addContractItemAction,
   updateContractItemAction,
 } from "@/app/(dashboard)/contracts/[id]/actions"
+import { ITEM_TYPE_LABELS } from "@/lib/item-type-labels"
 import type { ContractDetail } from "@/domain/contracts/queries"
 import { cn } from "@/lib/utils"
 
@@ -49,12 +50,7 @@ interface TierEntry {
   flatFee: string
 }
 
-const TYPE_LABELS = {
-  RECURRING_FIXED: "Recurrente — monto fijo",
-  RECURRING_VARIABLE: "Recurrente — tabla de precios",
-  ONE_TIME: "Cargo único",
-  INSTALLMENT: "Plan de cuotas",
-}
+const TYPE_LABELS = ITEM_TYPE_LABELS
 
 interface ContractItemDrawerProps {
   contractId: string

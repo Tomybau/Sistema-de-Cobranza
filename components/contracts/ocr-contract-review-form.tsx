@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { contractSchema, type ContractFormValues } from "@/domain/contracts/schemas"
 import { CURRENCIES } from "@/lib/currencies"
+import { ITEM_TYPE_LABELS } from "@/lib/item-type-labels"
 import { ocrResultToDraftItems } from "@/lib/ocr-to-draft-items"
 import type { OcrContractResult, OcrPricingTier, OcrContractItem } from "@/domain/ocr/schemas"
 import type { ClientMatchResult } from "@/domain/ocr/match-client"
@@ -45,13 +46,7 @@ const CONFIDENCE_LABEL: Record<string, string> = {
   MEDIUM: "Confianza media",
   LOW: "Confianza baja",
 }
-const ITEM_TYPE_LABEL: Record<string, string> = {
-  RECURRING_FIXED: "Fijo mensual",
-  RECURRING_VARIABLE: "Variable (tabla)",
-  ONE_TIME: "Único",
-  INSTALLMENT: "Cuotas",
-  UNKNOWN: "Desconocido",
-}
+const ITEM_TYPE_LABEL = ITEM_TYPE_LABELS
 const ITEM_TYPES = [
   "RECURRING_FIXED",
   "RECURRING_VARIABLE",

@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { DraftItemInput, DraftPricingTier } from "@/app/(dashboard)/contracts/types"
+import { ITEM_TYPE_LABELS } from "@/lib/item-type-labels"
 
 // ─── Local types (add React keys) ────────────────────────────────────────────
 
@@ -37,12 +38,7 @@ type LocalDraft = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TYPE_LABELS: Record<LocalDraft["type"], string> = {
-  RECURRING_FIXED: "Mensualidad fija",
-  RECURRING_VARIABLE: "Variable (tabla de precios)",
-  ONE_TIME: "Pago único",
-  INSTALLMENT: "En cuotas",
-}
+const TYPE_LABELS = ITEM_TYPE_LABELS as Record<LocalDraft["type"], string>
 
 function uid() {
   return Math.random().toString(36).slice(2)
