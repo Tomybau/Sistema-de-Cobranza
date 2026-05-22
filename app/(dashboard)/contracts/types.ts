@@ -47,6 +47,7 @@ export type DraftItemInput = {
   quotaUnit?: string
   durationMonths?: number
   needsReview?: boolean
+  startDate?: string               // ISO YYYY-MM-DD — ítem se activa a partir de esta fecha
 }
 
 export type CreateContractFullInput = {

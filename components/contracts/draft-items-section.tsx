@@ -31,6 +31,7 @@ type LocalDraft = {
   quotaLimit: string
   quotaUnit: string
   durationMonths: string
+  startDate: string       // YYYY-MM-DD — activa el ítem desde esta fecha
   _tiers: LocalTier[]
 }
 
@@ -60,6 +61,7 @@ function emptyDraft(): LocalDraft {
     quotaLimit: "",
     quotaUnit: "",
     durationMonths: "",
+    startDate: "",
     _tiers: [newTier()],
   }
 }
@@ -81,6 +83,7 @@ function fromInput(item: DraftItemInput): LocalDraft {
     quotaLimit: item.quotaLimit ?? "",
     quotaUnit: item.quotaUnit ?? "",
     durationMonths: item.durationMonths?.toString() ?? "",
+    startDate: item.startDate ?? "",
     _tiers:
       item.newPricingTableTiers?.map((t) => ({ ...t, _id: uid() })) ?? [newTier()],
   }
@@ -108,6 +111,7 @@ function toInput(item: LocalDraft): DraftItemInput {
     quotaLimit: item.quotaLimit || undefined,
     quotaUnit: item.quotaUnit || undefined,
     durationMonths: item.durationMonths ? Number(item.durationMonths) : undefined,
+    startDate: item.startDate || undefined,
   }
 }
 
@@ -368,6 +372,12 @@ export function DraftItemsSection({ items, onAdd, onRemove, onUpdate }: DraftIte
                           <span>${item.fixedAmount}/mes</span>
                         </div>
                       )}
+                      {item.startDate && (
+                        <div>
+                          <span className="text-muted-foreground">Se activa: </span>
+                          <span>{item.startDate}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Pricing tiers */}
@@ -462,28 +472,41 @@ export function DraftItemsSection({ items, onAdd, onRemove, onUpdate }: DraftIte
 
           {/* RECURRING_FIXED */}
           {draft.type === "RECURRING_FIXED" && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>
-                  Monto fijo <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  value={draft.fixedAmount}
-                  onChange={(e) => setField("fixedAmount", e.target.value)}
-                  placeholder="1500.00"
-                />
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>
+                    Monto fijo <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    value={draft.fixedAmount}
+                    onChange={(e) => setField("fixedAmount", e.target.value)}
+                    placeholder="1500.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>
+                    Día de facturación <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={28}
+                    value={draft.billingDayOfMonth}
+                    onChange={(e) => setField("billingDayOfMonth", e.target.value)}
+                    placeholder="1"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>
-                  Día de facturación <span className="text-destructive">*</span>
+              <div className="space-y-2 max-w-xs">
+                <Label className="text-xs text-muted-foreground">
+                  Fecha de activación{" "}
+                  <span className="font-normal">(dejar vacío para activar de inmediato)</span>
                 </Label>
                 <Input
-                  type="number"
-                  min={1}
-                  max={28}
-                  value={draft.billingDayOfMonth}
-                  onChange={(e) => setField("billingDayOfMonth", e.target.value)}
-                  placeholder="1"
+                  type="date"
+                  value={draft.startDate}
+                  onChange={(e) => setField("startDate", e.target.value)}
                 />
               </div>
             </div>

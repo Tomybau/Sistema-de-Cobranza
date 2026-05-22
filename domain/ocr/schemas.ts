@@ -35,6 +35,14 @@ export const ocrContractItemSchema = z.object({
     })
   ).nullable(),
   breakdownNote: z.string().nullable(), // composición del monto total (si es bundle)
+  // Mensualidad implícita que se activa cuando termina la parte prepagada de un INSTALLMENT
+  impliedRecurring: z.object({
+    fixedAmount: z.number(),
+    billingDayOfMonth: z.number().nullable(),
+    activatesAfterMonths: z.number(),   // N meses desde startDate del contrato
+    quotaLimit: z.number().nullable(),
+    quotaUnit: z.string().nullable(),
+  }).nullable(),
   reasoning: z.string().nullable(),
 })
 

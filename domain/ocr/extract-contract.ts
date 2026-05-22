@@ -61,6 +61,13 @@ Estructura de salida:
           "label": "string | null"
         }
       ] | null,
+      "impliedRecurring": {                    // solo para INSTALLMENT que incluye mensualidades prepagadas
+        "fixedAmount": number,                 // monto mensual una vez activado
+        "billingDayOfMonth": number | null,    // día de facturación (o null si no especificado)
+        "activatesAfterMonths": number,        // N meses desde startDate del contrato
+        "quotaLimit": number | null,           // límite de conversaciones/unidades incluidas
+        "quotaUnit": string | null             // unidad (ej: "conversaciones")
+      } | null,
       "reasoning": "string | null"
     }
   ],
@@ -172,8 +179,34 @@ REGLAS DE CLASIFICACIÓN DE ÍTEMS
 
    CRÍTICO: si el monto total INCLUYE mensualidades prepagadas (no se generarán tickets mensuales),
    consignarlo en breakdownNote. NO crear un ítem RECURRING_FIXED separado para esas mensualidades.
+   En cambio, si el contrato TAMBIÉN especifica que esa mensualidad continúa automáticamente después
+   del período prepagado → completar impliedRecurring en ese mismo ítem INSTALLMENT.
 
 5. UNKNOWN — si no podés decidir con confianza. Explicar en reasoning.
+
+────────────────────────────────────────────────────────────
+REGLAS DE impliedRecurring (mensualidad que se activa al terminar el prepago)
+────────────────────────────────────────────────────────────
+
+Completar impliedRecurring SOLO cuando se cumplan LAS DOS condiciones:
+  a) El ítem es de tipo INSTALLMENT
+  b) El contrato indica explícitamente que esas cuotas incluyen mensualidades prepagadas
+     Y que, terminado ese período, la mensualidad continúa (ya sea por renovación automática
+     o por cláusula explícita de continuidad).
+
+Campos:
+  - fixedAmount: monto mensual regular (el que se pagará cada mes una vez activado)
+  - activatesAfterMonths: cantidad de meses prepagados (= el período cubierto en el INSTALLMENT)
+  - billingDayOfMonth: día de cobro mensual si se menciona, null si no.
+  - quotaLimit / quotaUnit: si la mensualidad incluye un límite de uso (ej: 2500 conversaciones/mes)
+
+Ejemplo:
+  "50% firma + 50% producción. Desglose: Impl. $1,600 + 15 meses de mensualidad $500/mes (2500 conv) = $9,100.
+   Al término de los 15 meses el servicio se renueva mensualmente."
+  → INSTALLMENT totalAmount=9100, installments=2, breakdownNote="Impl. $1,600 + 15 meses $7,500"
+  → impliedRecurring={ fixedAmount:500, activatesAfterMonths:15, billingDayOfMonth:null, quotaLimit:2500, quotaUnit:"conversaciones" }
+
+Si el contrato NO dice que la mensualidad continúa después del prepago → impliedRecurring = null.
 
 ────────────────────────────────────────────────────────────
 REGLAS DE TABLAS DE EXCEDENTES (overagePricingTable)

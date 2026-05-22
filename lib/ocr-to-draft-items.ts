@@ -1,3 +1,4 @@
+import { addMonths, format } from "date-fns"
 import type { DraftItemInput, DraftPricingTier } from "@/app/(dashboard)/contracts/types"
 import type {
   OcrContractItem,
@@ -86,7 +87,35 @@ function mapItem(item: OcrContractItem): DraftItemInput {
 }
 
 export function ocrResultToDraftItems(result: OcrContractResult): DraftItemInput[] {
+  const contractStartDate = result.contract.startDate ?? result.contract.signatureDate ?? null
+
   const items = result.items.map(mapItem)
+
+  // Companion RECURRING_FIXED: cuando un INSTALLMENT lleva mensualidades prepagadas
+  result.items.forEach((ocrItem) => {
+    const ir = ocrItem.impliedRecurring
+    if (!ir) return
+
+    let startDateStr: string | undefined
+    if (contractStartDate) {
+      const base = new Date(contractStartDate)
+      const activated = addMonths(base, ir.activatesAfterMonths)
+      startDateStr = format(activated, "yyyy-MM-dd")
+    }
+
+    const companion: DraftItemInput = {
+      type: "RECURRING_FIXED",
+      name: `Mensualidad — ${ocrItem.name}`,
+      description: `Se activa ${ir.activatesAfterMonths} meses después del inicio del contrato`,
+      fixedAmount: String(ir.fixedAmount),
+      billingDayOfMonth: ir.billingDayOfMonth ?? 1,
+      quotaLimit: ir.quotaLimit != null ? String(ir.quotaLimit) : undefined,
+      quotaUnit: ir.quotaUnit ?? undefined,
+      startDate: startDateStr,
+      needsReview: startDateStr == null, // si no hay startDate del contrato, pedir revisión
+    }
+    items.push(companion)
+  })
 
   // overagePricingTable → RECURRING_VARIABLE adicional
   if (result.overagePricingTable && result.overagePricingTable.tiers.length > 0) {
