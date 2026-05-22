@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { cn } from "@/lib/utils"
 import {
   Select,
   SelectContent,
@@ -32,6 +34,7 @@ type LocalDraft = {
   quotaLimit: string
   quotaUnit: string
   durationMonths: string
+  autoRenew: boolean      // RECURRING_FIXED: si durationMonths, sigue post-vencimiento
   startDate: string       // YYYY-MM-DD — activa el ítem desde esta fecha
   _tiers: LocalTier[]
 }
@@ -57,6 +60,7 @@ function emptyDraft(): LocalDraft {
     quotaLimit: "",
     quotaUnit: "",
     durationMonths: "",
+    autoRenew: false,
     startDate: "",
     _tiers: [newTier()],
   }
@@ -79,6 +83,7 @@ function fromInput(item: DraftItemInput): LocalDraft {
     quotaLimit: item.quotaLimit ?? "",
     quotaUnit: item.quotaUnit ?? "",
     durationMonths: item.durationMonths?.toString() ?? "",
+    autoRenew: item.autoRenew ?? false,
     startDate: item.startDate ?? "",
     _tiers:
       item.newPricingTableTiers?.map((t) => ({ ...t, _id: uid() })) ?? [newTier()],
@@ -107,6 +112,7 @@ function toInput(item: LocalDraft): DraftItemInput {
     quotaLimit: item.quotaLimit || undefined,
     quotaUnit: item.quotaUnit || undefined,
     durationMonths: item.durationMonths ? Number(item.durationMonths) : undefined,
+    autoRenew: item.autoRenew,
     startDate: item.startDate || undefined,
   }
 }
@@ -504,6 +510,68 @@ export function DraftItemsSection({ items, onAdd, onRemove, onUpdate }: DraftIte
                   value={draft.startDate}
                   onChange={(e) => setField("startDate", e.target.value)}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Duración</Label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    className={cn(
+                      "h-8 px-3 text-xs rounded border font-medium transition-colors",
+                      !draft.durationMonths
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-border hover:bg-accent/70 text-muted-foreground"
+                    )}
+                    onClick={() => {
+                      setField("durationMonths", "")
+                      setField("autoRenew", false)
+                    }}
+                  >
+                    Mensual renovable
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "h-8 px-3 text-xs rounded border font-medium transition-colors",
+                      draft.durationMonths
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-border hover:bg-accent/70 text-muted-foreground"
+                    )}
+                    onClick={() => {
+                      if (!draft.durationMonths) setField("durationMonths", "12")
+                    }}
+                  >
+                    Plazo fijo
+                  </button>
+                  {draft.durationMonths && (
+                    <>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={120}
+                        value={draft.durationMonths}
+                        onChange={(e) => setField("durationMonths", e.target.value)}
+                        className="h-8 w-16 text-sm text-center"
+                      />
+                      <span className="text-xs text-muted-foreground">meses</span>
+                    </>
+                  )}
+                </div>
+                {draft.durationMonths && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <Checkbox
+                      id={`autoRenew-${draft.name}`}
+                      checked={draft.autoRenew}
+                      onCheckedChange={(v) => setField("autoRenew", v === true)}
+                    />
+                    <label
+                      htmlFor={`autoRenew-${draft.name}`}
+                      className="text-xs text-muted-foreground cursor-pointer select-none"
+                    >
+                      Renovación automática al vencer (sigue generando tickets mensuales)
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
           )}

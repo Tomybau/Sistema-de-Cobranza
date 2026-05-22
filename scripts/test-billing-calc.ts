@@ -47,6 +47,8 @@ const fixedItem: BillingContractItem = {
   isActive: true,
   startDate: null,
   endDate: null,
+  durationMonths: null,
+  autoRenew: false,
 }
 
 const variableItem: BillingContractItem = {
@@ -72,6 +74,8 @@ const variableItem: BillingContractItem = {
   isActive: true,
   startDate: null,
   endDate: null,
+  durationMonths: null,
+  autoRenew: false,
 }
 
 const oneTimeItem: BillingContractItem = {
@@ -90,6 +94,8 @@ const oneTimeItem: BillingContractItem = {
   isActive: true,
   startDate: null,
   endDate: null,
+  durationMonths: null,
+  autoRenew: false,
 }
 
 // INSTALLMENT con partes iguales (legado — sin installmentPlan)
@@ -109,6 +115,8 @@ const installmentItem: BillingContractItem = {
   isActive: true,
   startDate: new Date("2026-04-01T00:00:00Z"),
   endDate: null,
+  durationMonths: null,
+  autoRenew: false,
 }
 
 // INSTALLMENT con porcentajes distintos por hito
@@ -132,6 +140,8 @@ const installmentItemPct: BillingContractItem = {
   isActive: true,
   startDate: new Date("2026-04-01T00:00:00Z"),
   endDate: null,
+  durationMonths: null,
+  autoRenew: false,
 }
 
 // ─── Utils ───────────────────────────────────────────────────────────────────

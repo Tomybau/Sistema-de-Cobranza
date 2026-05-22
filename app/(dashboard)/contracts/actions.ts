@@ -192,6 +192,7 @@ export async function createContractFullAction(
             quotaLimit: item.quotaLimit?.trim() ? toDecimal(item.quotaLimit) : null,
             quotaUnit: item.quotaUnit?.trim() || null,
             durationMonths: item.durationMonths ?? null,
+            autoRenew: item.autoRenew ?? false,
             startDate: item.startDate ? new Date(item.startDate) : null,
           },
         })

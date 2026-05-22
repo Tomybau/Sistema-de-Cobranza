@@ -3,6 +3,7 @@ import {
   startOfMonth,
   endOfMonth,
   addDays,
+  addMonths,
   differenceInCalendarMonths,
   setDate,
   getDaysInMonth,
@@ -161,6 +162,13 @@ export function calculateTicketsForContract(params: {
     if (item.endDate) {
       const zonedItemEnd = inTZ(item.endDate)
       if (isBefore(endOfMonth(zonedItemEnd), startOfMonth(zonedPeriod))) continue
+    }
+
+    // Guard: durationMonths cutoff (solo si no es auto-renovable)
+    if (item.durationMonths && !item.autoRenew) {
+      const baseStart = item.startDate ?? contract.startDate
+      const effectiveEnd = addMonths(inTZ(baseStart), item.durationMonths - 1)
+      if (isBefore(endOfMonth(effectiveEnd), startOfMonth(zonedPeriod))) continue
     }
 
     switch (item.type) {

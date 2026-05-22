@@ -48,6 +48,7 @@ function mapItem(item: OcrContractItem): DraftItemInput {
     quotaLimit: n(item.quotaLimit),
     quotaUnit: item.quotaUnit ?? undefined,
     durationMonths: item.durationMonths ?? undefined,
+    autoRenew: item.autoRenew ?? false,
   }
 
   if (type === "RECURRING_FIXED") {

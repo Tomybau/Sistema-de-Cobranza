@@ -36,6 +36,8 @@ export interface BillingContractItem {
   isActive: boolean
   startDate: Date | null
   endDate: Date | null
+  durationMonths: number | null   // si está seteado y !autoRenew, corta tickets a partir de start + N meses
+  autoRenew: boolean              // true = ignora cutoff por durationMonths
 }
 
 export interface BillingContract {

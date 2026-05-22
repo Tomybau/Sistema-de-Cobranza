@@ -205,6 +205,8 @@ model ContractItem {
   quotaLimit      Decimal? @db.Decimal(12, 4)
   quotaUnit       String?
   durationMonths  Int?
+  // Si durationMonths está seteado: false = stop al vencer / true = sigue generando tickets
+  autoRenew       Boolean  @default(false)
   // Metadata de hitos y desglose (para INSTALLMENT)
   milestoneLabels Json?    // String[] — etiqueta por cuota (legado; preferir installmentPlan)
   installmentPlan Json?    // [{label, percentage}][] — plan de cuotas con porcentaje por hito

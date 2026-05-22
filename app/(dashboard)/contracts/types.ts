@@ -46,6 +46,7 @@ export type DraftItemInput = {
   quotaLimit?: string
   quotaUnit?: string
   durationMonths?: number
+  autoRenew?: boolean              // si durationMonths: true = sigue post-vencimiento, false = stop
   needsReview?: boolean
   startDate?: string               // ISO YYYY-MM-DD — ítem se activa a partir de esta fecha
 }

@@ -48,6 +48,7 @@ Estructura de salida:
       ] | null,
       "breakdownNote": "string | null",            // para INSTALLMENT: de qué está compuesto el monto total
       "durationMonths": "number | null",
+      "autoRenew": "boolean | null",            // true si el contrato dice "renovación automática" tras durationMonths
       "billingDayOfMonth": "number | null",
       "quotaLimit": "number | null",
       "quotaUnit": "string | null",
@@ -104,17 +105,25 @@ client.signatoryName + signatoryId: la PERSONA FÍSICA que firma por el cliente.
   → signatoryName="Mariela del Carmen Domínguez Chanis", signatoryId="8-442-571"
 
 client.billingContact: la persona designada para recibir avisos de cobro o facturación.
-  Extraer si hay cualquier mención de "Atención:", "Contacto:", "Para cobros:", "Notificaciones a:",
-  u otra frase similar, acompañada del nombre de una PERSONA FÍSICA (no de la empresa en general).
+  REGLA AGRESIVA: si en CUALQUIER parte del documento (especialmente en cláusulas de "Notificaciones"
+  o "Domicilios contractuales") aparece "Atención:", "Contacto:", "Para cobros:", "Notificaciones a:",
+  "Att:", "A:", "Dirigido a:", "Persona de contacto:", o frase similar SEGUIDA del nombre de UNA PERSONA
+  FÍSICA → EXTRAERLO COMO billingContact. Incluí siempre el email y teléfono que aparezcan en esa
+  misma frase, aunque estén en líneas separadas.
   Si no hay tal mención → null.
 
-  CRÍTICO para contratos multi-empresa:
-  La sección "A LAS CONTRATANTES:" suele contener el contacto de cobros (ej: "Atención: Eric Zambrano,
-  Teléfono: 6557-7779, Correo: ezambrano@ena.com.pa"). Ese dato ES el billingContact.
-  NO coloques la razón social de la empresa en billingContact.name.
-
-  Ej: "Atención: Eric Zambrano, Teléfono: 6557-7779, Correo: ezambrano@ena.com.pa"
+  CRÍTICO — contratos donde aparece "A LAS CONTRATANTES:" o "DE LA CONTRATANTE:":
+  Estas secciones casi siempre contienen el contacto de cobros. Ejemplo típico:
+    "A LAS CONTRATANTES:
+     ENA NORTE S.A., ENA SUR S.A. y ENA ESTE S.A.
+     Vía Israel, corregimiento de San Francisco, Edificio ENA
+     Atención: Eric Zambrano.
+     Teléfono: 6557-7779.
+     Correo: ezambrano@ena.com.pa"
   → billingContact.name="Eric Zambrano", email="ezambrano@ena.com.pa", phone="6557-7779"
+
+  NUNCA poner la razón social de la empresa en billingContact.name (eso va en client.name).
+  NUNCA dejar billingContact en null cuando hay "Atención: <nombre persona>" en el documento.
 
 ────────────────────────────────────────────────────────────
 REGLAS DE CLASIFICACIÓN DE ÍTEMS
@@ -122,10 +131,14 @@ REGLAS DE CLASIFICACIÓN DE ÍTEMS
 
 1. RECURRING_FIXED — mensualidad fija igual todos los meses.
    - fixedAmount = monto mensual
-   - durationMonths = cantidad de meses si está especificado
+   - durationMonths = cantidad de meses si está especificado (plazo comprometido)
+   - autoRenew = true SOLO si el contrato explícitamente dice que tras los durationMonths se renueva
+     automáticamente / continúa indefinidamente. Si no se aclara → null o false.
+     Ej: "12 meses de mantenimiento, renovable automáticamente mes a mes" → autoRenew=true
+     Ej: "12 meses de soporte" (sin mención de renovación) → autoRenew=false
    - quotaLimit / quotaUnit = límite incluido si se menciona (ej: 2500 conversaciones/mes)
    Ej: "15 meses de mensualidad de 2,500 conversaciones/mes a $500/mes"
-   → fixedAmount=500, durationMonths=15, quotaLimit=2500, quotaUnit="conversaciones"
+   → fixedAmount=500, durationMonths=15, autoRenew=false, quotaLimit=2500, quotaUnit="conversaciones"
 
 2. RECURRING_VARIABLE — mensualidad que varía según tabla de volumen/consumo.
    - pricingTiers = filas de la tabla (fromQuantity, toQuantity, flatFee para ese rango)

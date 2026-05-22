@@ -89,6 +89,8 @@ export async function generateBillingTickets(
       isActive: item.isActive,
       startDate: item.startDate,
       endDate: item.endDate,
+      durationMonths: item.durationMonths ?? null,
+      autoRenew: item.autoRenew,
     }
   })
 
@@ -469,6 +471,8 @@ export async function previewBillingTickets(
     isActive: item.isActive,
     startDate: item.startDate,
     endDate: item.endDate,
+    durationMonths: item.durationMonths ?? null,
+    autoRenew: item.autoRenew,
   }))
 
   const newDrafts = calculateTicketsForContract({

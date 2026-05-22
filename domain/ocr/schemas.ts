@@ -22,6 +22,8 @@ export const ocrContractItemSchema = z.object({
   totalAmount: z.number().nullable(),
   installments: z.number().nullable(),
   durationMonths: z.number().nullable(),
+  // Para RECURRING_FIXED con durationMonths: si el contrato dice que renueva automáticamente al vencer
+  autoRenew: z.boolean().nullable(),
   billingDayOfMonth: z.number().nullable(),
   quotaLimit: z.number().nullable(),
   quotaUnit: z.string().nullable(),

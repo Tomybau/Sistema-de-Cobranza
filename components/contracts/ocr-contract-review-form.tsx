@@ -223,11 +223,23 @@ export function OcrContractReviewForm({
     phone: ocrData.client.phone || "",
     address: ocrData.client.address || "",
   })
-  const [newClient, setNewClient] = useState<NewClientInput>({
-    ...EMPTY_CLIENT,
-    fullName: ocrData.client.name || "",
-    email: ocrData.client.email || "",
-    phone: ocrData.client.phone || "",
+  // Prioridad para contacto: billingContact > signatoryName > razón social (fallback)
+  const [newClient, setNewClient] = useState<NewClientInput>(() => {
+    const bc = ocrData.client.billingContact
+    const personName = bc?.name || ocrData.client.signatoryName || ocrData.client.name || ""
+    const personEmail = bc?.email || ocrData.client.email || ""
+    const personPhone = bc?.phone || ocrData.client.phone || ""
+    return {
+      ...EMPTY_CLIENT,
+      fullName: personName,
+      email: personEmail,
+      phone: personPhone,
+      clientType: bc?.name
+        ? "BILLING_CONTACT"
+        : ocrData.client.signatoryName
+        ? "LEGAL_REP"
+        : "GENERAL",
+    }
   })
 
   // ── Items editables (copia del OCR, el usuario los modifica antes de crear) ─
@@ -454,6 +466,7 @@ export function OcrContractReviewForm({
               value={watchedCompanyId}
               onValueChange={(v) => v != null && setValue("companyId", v)}
               disabled={isPending}
+              items={Object.fromEntries(companies.map((c) => [c.id, c.legalName]))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccioná una empresa" />
@@ -582,6 +595,7 @@ export function OcrContractReviewForm({
               defaultValue="DRAFT"
               onValueChange={(v) => v != null && setValue("status", v as ContractFormValues["status"])}
               disabled={isPending}
+              items={STATUS_LABELS}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -622,6 +636,7 @@ export function OcrContractReviewForm({
                 v != null && setValue("currency", v as ContractFormValues["currency"])
               }
               disabled={isPending}
+              items={Object.fromEntries(CURRENCIES.map((c) => [c, c]))}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -693,6 +708,7 @@ export function OcrContractReviewForm({
                     onValueChange={(v) =>
                       updItem(idx, { type: v as OcrContractItem["type"] })
                     }
+                    items={ITEM_TYPE_LABEL}
                   >
                     <SelectTrigger className="h-8 text-xs w-36">
                       <SelectValue />
@@ -722,7 +738,7 @@ export function OcrContractReviewForm({
 
               {/* Duración — solo para RECURRING_FIXED */}
               {item.type === "RECURRING_FIXED" && (
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">Duración</label>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <button
@@ -733,7 +749,7 @@ export function OcrContractReviewForm({
                           ? "bg-primary text-primary-foreground border-primary"
                           : "border-border hover:bg-accent/70 text-muted-foreground"
                       )}
-                      onClick={() => updItem(idx, { durationMonths: null })}
+                      onClick={() => updItem(idx, { durationMonths: null, autoRenew: null })}
                     >
                       Mensual renovable
                     </button>
@@ -764,6 +780,21 @@ export function OcrContractReviewForm({
                       </div>
                     )}
                   </div>
+                  {!!item.durationMonths && (
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      <Checkbox
+                        id={`autoRenew-${idx}`}
+                        checked={!!item.autoRenew}
+                        onCheckedChange={(v) => updItem(idx, { autoRenew: v === true })}
+                      />
+                      <label
+                        htmlFor={`autoRenew-${idx}`}
+                        className="text-xs text-muted-foreground cursor-pointer select-none"
+                      >
+                        Renovación automática al vencer (sigue generando tickets mensuales)
+                      </label>
+                    </div>
+                  )}
                 </div>
               )}
 
