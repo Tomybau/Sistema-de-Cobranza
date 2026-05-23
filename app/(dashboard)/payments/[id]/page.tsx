@@ -45,6 +45,24 @@ const METHOD_LABELS: Record<string, string> = {
   OTHER: "Otro",
 }
 
+const TICKET_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Pendiente",
+  SENT: "Enviado",
+  PAID: "Pagado",
+  OVERDUE: "Vencido",
+  CANCELLED: "Cancelado",
+  PARTIAL: "Pago parcial",
+}
+
+const TICKET_STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline" | "ok" | "warn" | "bad" | "pending"> = {
+  PENDING: "pending",
+  SENT: "secondary",
+  PAID: "ok",
+  OVERDUE: "bad",
+  CANCELLED: "outline",
+  PARTIAL: "warn",
+}
+
 export default async function PaymentDetailPage({
   params,
 }: {
@@ -227,8 +245,8 @@ export default async function PaymentDetailPage({
                       {pt.billingTicket.contractItem.name}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {pt.billingTicket.status}
+                      <Badge variant={TICKET_STATUS_VARIANTS[pt.billingTicket.status] ?? "outline"} className="text-xs">
+                        {TICKET_STATUS_LABELS[pt.billingTicket.status] ?? pt.billingTicket.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
