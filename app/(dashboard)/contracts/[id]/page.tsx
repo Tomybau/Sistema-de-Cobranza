@@ -2,13 +2,21 @@ export const dynamic = "force-dynamic"
 
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, Pencil } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { getContractById } from "@/domain/contracts/queries"
 import { listBillingTicketsByContract } from "@/domain/billing/queries"
 import { formatMoney } from "@/lib/money"
@@ -85,16 +93,30 @@ export default async function ContractDetailPage({ params }: Props) {
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/contracts">Contratos</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={`/companies/${contract.company.id}`}>{contract.company.legalName}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{contract.contractNumber}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Link
-            href="/contracts"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Contratos
-          </Link>
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold">{contract.title}</h1>
             <Badge variant={STATUS_VARIANTS[contract.status] ?? "outline"}>

@@ -2,10 +2,18 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 
 export const dynamic = "force-dynamic"
-import { ChevronLeft, Pencil, Plus } from "lucide-react"
+import { Pencil, Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { getCompanyById, getCompanyKpis } from "@/domain/companies/queries"
 import { listClientsByCompany } from "@/domain/clients/queries"
 import { listContracts } from "@/domain/contracts/queries"
@@ -44,16 +52,24 @@ export default async function CompanyDetailPage({ params }: Props) {
 
   return (
     <div className="p-6 space-y-6 max-w-6xl">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/companies">Empresas</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{company.legalName}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Link
-            href="/companies"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Empresas
-          </Link>
           <h1 className="text-xl font-semibold">{company.legalName}</h1>
           {company.tradeName && (
             <p className="text-sm text-muted-foreground">{company.tradeName}</p>

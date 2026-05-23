@@ -24,6 +24,14 @@ import { Badge } from "@/components/ui/badge"
 import { CancelPaymentButton } from "@/components/payments/cancel-payment-button"
 import { ReceiptActions } from "@/components/payments/receipt-actions"
 import { Paperclip } from "lucide-react"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 
 export const metadata: Metadata = {
   title: "Detalle del Pago | Sistema de Cobranza",
@@ -64,11 +72,31 @@ export default async function PaymentDetailPage({
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6 max-w-5xl mx-auto">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/payments">Pagos</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={`/companies/${payment.companyId}`}>{payment.company.legalName}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{payment.paymentNumber}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Comprobante {payment.paymentNumber}</h2>
-          <p className="text-muted-foreground mt-1">
-            Empresa: <Link href={`/companies/${payment.companyId}`} className="hover:underline text-primary">{payment.company.legalName}</Link>
+          <h2 className="text-xl font-semibold tracking-tight">{payment.paymentNumber}</h2>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {payment.company.legalName} · {payment.client.fullName}
           </p>
         </div>
         <div className="flex items-center gap-2">

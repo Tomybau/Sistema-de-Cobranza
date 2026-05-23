@@ -2,12 +2,19 @@ export const dynamic = "force-dynamic"
 
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { getBillingTicketById } from "@/domain/billing/queries"
 import { formatMoney } from "@/lib/money"
 import { CancelTicketButton } from "@/components/billing/cancel-ticket-button"
@@ -57,16 +64,30 @@ export default async function TicketDetailPage({ params }: Props) {
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/tickets">Tickets</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={`/contracts/${ticket.contractId}`}>{ticket.contractTitle}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{ticket.ticketNumber}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Link
-            href="/tickets"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-2"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Tickets
-          </Link>
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold font-mono">
               {ticket.ticketNumber}
